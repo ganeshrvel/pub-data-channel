@@ -2,7 +2,7 @@
 
 ##### Data Channel for Dart and Flutter.
 
-**data_channel**  (DC) is a simple dart utility for handling and routing both data and error.
+**data_channel** (DC) is a simple dart utility for exception handling and data routing.
 It is not a very ideal solution to handle exceptions using try and catch at every function call, use `data_channel` instead. `data_channel` will take care of routing errors and data out of a method.
 
 ### Installation
