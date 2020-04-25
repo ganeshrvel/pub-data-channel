@@ -1,6 +1,6 @@
 name: data_channel
 description: data_channel (DC) is a simple dart utility for handling exceptions and data routing.
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/ganeshrvel/pub-data-channel
 
 environment:
