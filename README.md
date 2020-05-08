@@ -105,11 +105,11 @@ Please feel free to contact me at ganeshrvel@outlook.com
 
 - Author: [Ganesh Rathinavel](https://www.linkedin.com/in/ganeshrvel "Ganesh Rathinavel")
 - License: [MIT](https://github.com/ganeshrvel/openmtp/blob/master/LICENSE "MIT")
-- Package URL: [https://pub.dev/packages/scaff](https://pub.dev/packages/scaff "https://pub.dev/packages/scaff")
-- Repo URL: [https://github.com/ganeshrvel/pub-scaff](https://github.com/ganeshrvel/pub-scaff/ "https://github.com/ganeshrvel/pub-scaff")
+- Package URL: [https://pub.dev/packages/data_channel](https://pub.dev/packages/data_channel "https://pub.dev/packages/data_channel")
+- Repo URL: [https://github.com/ganeshrvel/pub-data-channel](https://github.com/ganeshrvel/pub-data-channel/ "https://github.com/ganeshrvel/pub-data-channel")
 - Contacts: ganeshrvel@outlook.com
 
 ### License
-scaff | Scaffold Generator for Dart and Flutter. [MIT License](https://github.com/ganeshrvel/pub-scaff/blob/master/LICENSE "MIT License").
+data_channel | Data Channel for Dart and Flutter. [MIT License](https://github.com/ganeshrvel/pub-data-channel/blob/master/LICENSE "MIT License").
 
 Copyright © 2018-Present Ganesh Rathinavel

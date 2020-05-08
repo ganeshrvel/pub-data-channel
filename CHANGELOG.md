@@ -1,4 +1,4 @@
-## 1.0.4
+## 1.0.4+1
 
 - Fixed 'Dart_LoadScriptFromKernel: The binary program does not contain main' bug
 
