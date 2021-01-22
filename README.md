@@ -57,6 +57,7 @@ void getStarwarsCharacters() async {
 ```
 
 **DC forward**
+
 `forward` will help to avoid redundant error checks. We can easily forward a different data model to the callee instead of the original incoming data model. `DC.forward` will forward the error, if present, else data will be returned.
 ```dart
 Future<DC<Exception, UserModel>> checkSomethingAndReturn() {
@@ -70,6 +71,7 @@ Future<DC<Exception, UserModel>> checkSomethingAndReturn() {
 ```
 
 **DC pick**
+
 Cherry pick values using `DC.pick`
 
 - onError will return error, if present
