@@ -54,6 +54,7 @@ class DC<Error, Data> {
   }) {
     if (hasError) {
       if (onError != null) {
+        // ignore: null_check_on_nullable_type_parameter
         onError(error!);
       }
 
@@ -68,6 +69,7 @@ class DC<Error, Data> {
 
     if (hasData) {
       if (onData != null) {
+        // ignore: null_check_on_nullable_type_parameter
         onData(data!);
       }
 
