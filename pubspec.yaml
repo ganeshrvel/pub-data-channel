@@ -7,10 +7,8 @@ environment:
   sdk: '>=2.12.0-0 <3.0.0'
 
 dependencies:
-  sync_http: ^0.3.0-nullsafety.0
-
-  meta: ^1.3.0-nullsafety.6
+  meta: ^1.3.0
 
 dev_dependencies:
   # Linting
-  lint: ^1.5.1
+  lint: ^1.5.3
