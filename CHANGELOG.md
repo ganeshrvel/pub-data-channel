@@ -1,3 +1,6 @@
+## 3.0.0+1
+- Readme updates
+
 ## 3.0.0
 
 - **Breaking Change**: Requires Dart SDK `>=3.0.0 <4.0.0`
