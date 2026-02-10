@@ -397,7 +397,8 @@ void main() {
       final userResult =
           DC<NetworkError, User>.error(const NetworkError('Failed'));
 
-      final result = DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
+      final result =
+          DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
 
       expect(result.hasError, true);
       result.fold(
@@ -411,7 +412,8 @@ void main() {
     test('DCData with Some becomes DCData with None', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
+      final result =
+          DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
 
       expect(result.hasOptionalData, true);
       result.fold(
@@ -426,7 +428,8 @@ void main() {
     test('DCData with None stays DCData with None', () {
       final userResult = DC<NetworkError, User>.nullData();
 
-      final result = DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
+      final result =
+          DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
 
       expect(result.hasOptionalData, true);
       result.fold(
@@ -440,7 +443,8 @@ void main() {
     test('forwardErrorOrNull changes Data type parameter', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardErrorOrNull<NetworkError, User, String>(userResult);
+      final result =
+          DC.forwardErrorOrNull<NetworkError, User, String>(userResult);
 
       expect(result, isA<DC<NetworkError, String>>());
       expect(result.hasOptionalData, true);
@@ -823,7 +827,8 @@ void main() {
   group('Complex Workflows - Success Path End-to-End', () {
     test('data → forward → forwardErrorOrElse → fold (transforms data)', () {
       final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
-      final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Software Developer'));
+      final step2 =
+          DC.forwardErrorOr(step1, const Profile('1', 'Software Developer'));
       final step3 = DC.forwardErrorOrElse(
         step2,
         (profileOpt) => profileOpt.map((p) => 'Bio: ${p.bio}'),
@@ -855,7 +860,8 @@ void main() {
   });
 
   group('Complex Workflows - Mixed Scenarios', () {
-    test('forwardErrorOrElse filter fails, then forward continues with None', () {
+    test('forwardErrorOrElse filter fails, then forward continues with None',
+        () {
       final step1 = DC<NetworkError, User>.data(
         const User('1', 'Alice', isVerified: false),
       );
@@ -1269,7 +1275,8 @@ void main() {
       expect(result, 'User: Alice');
     });
 
-    test('Option operations in forwardErrorOrElse - chaining map, filter, orElse',
+    test(
+        'Option operations in forwardErrorOrElse - chaining map, filter, orElse',
         () {
       final dc = DC<NetworkError, User>.data(
         const User('1', 'Alice', isVerified: true),
