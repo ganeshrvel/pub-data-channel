@@ -1,3 +1,7 @@
+## 4.0.0+1
+
+- Readme updates
+
 ## 4.0.0
 
 - Requires Dart 3.0+ for sealed class support
