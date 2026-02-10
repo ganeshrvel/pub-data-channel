@@ -1,3 +1,7 @@
+## 4.0.0+3
+
+- Downgrade meta to 1.17.0 for Flutter test compatibility
+
 ## 4.0.0+2
 
 - Readme updates
