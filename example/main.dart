@@ -1,30 +1,37 @@
-// ignore_for_file: avoid_print, dangling_library_doc_comments, unreachable_from_main
+// ignore_for_file: avoid_print, unreachable_from_main
 
 /// **Complete Implementation Examples:**
 ///
-/// https://github.com/ganeshrvel/flutter_mobx_dio_boilerplate/blob/master/lib/features/login/data/data_sources/login_local_data_source.dart
-/// https://github.com/ganeshrvel/flutter_mobx_dio_boilerplate/blob/master/lib/features/login/data/controllers/login_controller.dart
-/// https://github.com/ganeshrvel/flutter_mobx_dio_boilerplate/blob/master/lib/features/login/data/repositories/login_repository.dart
-/// https://github.com/ganeshrvel/flutter_mobx_dio_boilerplate/blob/master/lib/features/login/ui/store/login_store.dart
+/// For comprehensive test examples and usage patterns, see:
+/// - DC (Data Channel) tests: https://github.com/ganeshrvel/pub-data-channel/blob/master/test/data_channel_test.dart
+/// - Option type tests: https://github.com/ganeshrvel/pub-data-channel/blob/master/test/option_test.dart
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:data_channel/data_channel.dart';
+import 'package:data_channel/src/option.dart';
 
 // Mock classes for examples
 class User {
-  User(this.id, this.name);
+  User(this.id, this.name, {this.isVerified = false});
 
   final String id;
   final String name;
+  final bool isVerified;
+
+  @override
+  String toString() => 'User(id: $id, name: $name, verified: $isVerified)';
 }
 
 class Profile {
-  Profile({this.id, this.name});
+  Profile(this.userId, this.bio);
 
-  final String? id;
-  final String? name;
+  final String userId;
+  final String bio;
+
+  @override
+  String toString() => 'Profile(userId: $userId, bio: $bio)';
 }
 
 class NetworkException implements Exception {
@@ -36,13 +43,13 @@ class NetworkException implements Exception {
   String toString() => 'NetworkException: $message';
 }
 
-class CacheException implements Exception {
-  CacheException(this.message);
+class ValidationException implements Exception {
+  ValidationException(this.field);
 
-  final String message;
+  final String field;
 
   @override
-  String toString() => 'CacheException: $message';
+  String toString() => 'ValidationException: $field';
 }
 
 class UserFacingException implements Exception {
@@ -55,205 +62,318 @@ class UserFacingException implements Exception {
 }
 
 void main() {
-  print('Data Channel Examples\n');
+  print('For more examples, see:');
+  print('  test/data_channel_test.dart');
+  print('  test/option_test.dart\n');
 
-  basicErrorHandlingExample();
-  checkingResultStateExample();
-  pickMethodExample();
-  pickWithOnNoErrorExample();
-  foldPatternExample();
-  mapDataExample();
-  mapErrorExample();
-  forwardExample();
-  chainedTransformationsExample();
-  realWorldScenarioExample();
+  basicDCUsageExample();
+  optionBasicsExample();
+  dcFoldExample();
+  dcForwardExample();
+  dcForwardOrElseExample();
+  dcMapErrorExample();
+  chainedOperationsExample();
+  realWorldApiExample();
+  nullHandlingWithOptionsExample();
+  workflowExample();
 }
 
-void basicErrorHandlingExample() {
-  print('=== Basic Error Handling ===');
-
+void basicDCUsageExample() {
+  // Success with data
   final successResult = DC<NetworkException, User>.data(
-    User('123', 'John Doe'),
+    User('123', 'Alice'),
   );
 
   print('Success case:');
-  print('  Has data: ${successResult.hasData}');
-  print('  Has error: ${successResult.hasError}');
-  print('  User: ${successResult.data?.name}');
+  print('  hasError: ${successResult.hasError}');
+  print('  hasOptionalData: ${successResult.hasOptionalData}');
 
+  // Error case
   final errorResult = DC<NetworkException, User>.error(
     NetworkException('Connection timeout'),
   );
 
   print('Error case:');
-  print('  Has data: ${errorResult.hasData}');
-  print('  Has error: ${errorResult.hasError}');
-  print('  Error: ${errorResult.error}');
+  print('  hasError: ${errorResult.hasError}');
+  print('  hasOptionalData: ${errorResult.hasOptionalData}\n');
+
+  // Success with no data
+  final nullDataResult = DC<NetworkException, User>.nullData();
+  print('Null data case:');
+  print('  hasError: ${nullDataResult.hasError}');
+  print('  hasOptionalData: ${nullDataResult.hasOptionalData}\n');
 }
 
-void checkingResultStateExample() {
-  print('=== Checking Result State ===');
+void optionBasicsExample() {
+  // Creating Options
+  const some = Some(42);
+  const none = None<int>();
+  final fromNullable = Option.from(null);
 
-  final result = DC<Exception, String>.data('Operation successful');
+  print('Some(42).isSome: ${some.isSome}');
+  print('None().isNone: ${none.isNone}');
+  print('Option.from(null).isNone: ${fromNullable.isNone}');
 
-  if (result.hasError) {
-    print('Error occurred: ${result.error}');
-  } else if (result.hasData) {
-    print('Success! Data: ${result.data}');
-  }
+  // Using Option methods
+  final doubled = some.map((x) => x * 2);
+  print('Some(42).map(x * 2): ${doubled.tryMaybe()}');
+
+  final withDefault = none.orElse(0);
+  print('None().orElse(0): $withDefault');
+
+  // Filtering
+  final evenOnly = some.filter((x) => x.isEven);
+  print('Some(42).filter(isEven): ${evenOnly.tryMaybe()}\n');
 }
 
-void pickMethodExample() {
-  print('=== Using pick() Method ===');
-
-  DC<CacheException, User>.data(User('456', 'Alice')).pick(
-    onError: (error) {
-      print('Error handler called: $error');
-    },
-    onData: (user) {
-      print('Data handler called: ${user.name}');
-    },
-    onNoData: () {
-      print('No data handler called');
-    },
+void dcFoldExample() {
+  final successResult = DC<NetworkException, User>.data(
+    User('789', 'Bob'),
   );
-}
-
-void pickWithOnNoErrorExample() {
-  print('=== Using pick() with onNoError ===');
-
-  DC<Exception, String?>.data(null).pick(
-    onError: (error) {
-      print('Error: $error');
-    },
-    onNoError: (data) {
-      if (data != null) {
-        print('Data available: $data');
-      } else {
-        print('Data is null, using default');
-      }
-    },
-  );
-}
-
-void foldPatternExample() {
-  print('=== Using fold() Pattern ===');
-
-  final successResult = DC<Exception, User>.data(User('789', 'Bob'));
 
   final message = successResult.fold(
-    onError: (error) => 'Failed to load user: $error',
-    onData: (user) => 'Welcome ${user?.name}!',
+    onError: (error) => 'Failed: ${error.message}',
+    onData: (userOption) => userOption.fold(
+      onSome: (user) => 'Welcome ${user.name}!',
+      onNone: () => 'No user data',
+    ),
   );
 
-  print('Fold result: $message');
+  print('Success fold: $message');
 
-  final errorResult = DC<Exception, User>.error(Exception('Network error'));
+  final errorResult = DC<NetworkException, User>.error(
+    NetworkException('Network error'),
+  );
 
   final errorMessage = errorResult.fold(
-    onError: (error) => 'Error occurred: $error',
-    onData: (user) => 'User: ${user?.name}',
+    onError: (error) => 'Error: ${error.message}',
+    onData: (userOption) => 'User loaded',
   );
 
-  print('Fold error result: $errorMessage');
+  print('Error fold: $errorMessage\n');
 }
 
-void mapDataExample() {
-  print('=== Using mapData() ===');
+void dcForwardExample() {
+  // Success case - transforms data
+  final userResult = DC<NetworkException, User>.data(
+    User('111', 'Charlie'),
+  );
 
-  final result = DC<Exception, User>.data(User('999', 'Charlie'));
+  final profileResult = DC.forward(
+    userResult,
+    Profile('111', 'Software Developer'),
+  );
 
-  final nameResult = result.mapData((user) => user.name);
+  print('User → Profile (success):');
+  profileResult.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (profile) => print('  Profile: ${profile.tryMaybe()}'),
+  );
 
-  print('Original data type: User');
-  print('Mapped data type: String');
-  print('Mapped value: ${nameResult.data}');
+  // Error case - forwards error
+  final errorResult = DC<NetworkException, User>.error(
+    NetworkException('Fetch failed'),
+  );
 
-  final upperResult = nameResult.mapData((name) => name.toUpperCase());
-  print('Chained mapping: ${upperResult.data}');
+  final errorProfileResult = DC.forward(
+    errorResult,
+    Profile('default', 'default'),
+  );
+
+  print('User → Profile (error):');
+  errorProfileResult.fold(
+    onError: (e) => print('  Error forwarded: $e'),
+    onData: (profile) => print('  Profile: ${profile.tryMaybe()}'),
+  );
 }
 
-void mapErrorExample() {
-  print('=== Using mapError() ===');
+void dcForwardOrElseExample() {
+  final userResult = DC<NetworkException, User>.data(
+    User('222', 'Diana', isVerified: true),
+  );
 
-  final result = DC<NetworkException, String>.error(
+  // Example 1: Simple map
+  final nameResult = DC.forwardOrElse(
+    userResult,
+    (userData) => userData.map((user) => user.name),
+  );
+
+  print('Extract name:');
+  nameResult.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (name) => print('  Name: ${name.orElse("Unknown")}'),
+  );
+
+  // Example 2: Filter with validation
+  final verifiedResult = DC.forwardOrElse(
+    userResult,
+    (userData) => userData.filter((user) => user.isVerified),
+  );
+
+  print('Filter verified users:');
+  verifiedResult.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (user) => user.fold(
+      onSome: (u) => print('  Verified user: ${u.name}'),
+      onNone: () => print('  User not verified'),
+    ),
+  );
+
+  // Example 3: Provide fallback
+  final displayNameResult = DC.forwardOrElse(
+    userResult,
+    (userData) => Some(userData.map((user) => user.name).orElse('Guest')),
+  );
+
+  print('With fallback:');
+  displayNameResult.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (name) => print('  Display name: ${name.tryMaybe()}'),
+  );
+}
+
+void dcMapErrorExample() {
+  final result = DC<NetworkException, User>.error(
     NetworkException('502 Bad Gateway'),
   );
 
+  // Transform to user-friendly error
   final friendlyResult = result.mapError(
     (error) => UserFacingException('Service temporarily unavailable'),
   );
 
-  print('Original error: ${result.error}');
-  print('Mapped error: ${friendlyResult.error}');
-}
-
-void forwardExample() {
-  print('=== Using DC.forward() ===');
-
-  final userResult = DC<Exception, User>.data(User('111', 'David'));
-
-  final profileResult = DC.forward(
-    userResult,
-    Profile(
-      id: userResult.data?.id,
-      name: userResult.data?.name,
-    ),
+  print('Original error:');
+  result.fold<void>(
+    onError: (e) => print('  $e'),
+    onData: (_) => {},
   );
 
-  print('User result has data: ${userResult.hasData}');
-  print('Profile result has data: ${profileResult.hasData}');
-  print(
-    'Profile: id=${profileResult.data?.id}, name=${profileResult.data?.name}',
+  print('Mapped error:');
+  friendlyResult.fold<void>(
+    onError: (e) => print('  $e'),
+    onData: (_) => {},
   );
-
-  final errorResult = DC<Exception, User>.error(Exception('Fetch failed'));
-
-  final errorProfileResult = DC.forward(
-    errorResult,
-    Profile(id: 'default', name: 'default'),
-  );
-
-  print('Error forwarded: ${errorProfileResult.hasError}');
-  print('Forwarded error: ${errorProfileResult.error}');
 }
 
-void chainedTransformationsExample() {
-  print('=== Chained Transformations ===');
+void chainedOperationsExample() {
+  final userResult = DC<NetworkException, User>.data(
+    User('333', 'eve', isVerified: true),
+  );
 
-  final result = DC<Exception, User>.data(User('222', 'eve'));
-
-  final displayName = result
-      .mapData((user) => user.name)
-      .mapData((name) => name.toUpperCase())
-      .mapData((name) => 'User: $name');
-
-  print('Chained result: ${displayName.data}');
+  DC
+      .forwardOrElse(
+        userResult,
+        (userData) => userData
+            .filter((user) => user.isVerified)
+            .map((user) => user.name)
+            .map((name) => name.toUpperCase()),
+      )
+      .fold(
+        onError: (e) => print('Error: $e'),
+        onData: (name) => print('Processed name: ${name.orElse("UNKNOWN")}'),
+      );
 }
 
-void realWorldScenarioExample() {
-  print('=== Real World Scenario ===');
+void realWorldApiExample() {
+  final apiResult = simulateApiCall('444');
 
-  final apiResult = simulateApiCall('333');
-
+  // Pattern 1: Using fold
   final greeting = apiResult.fold(
-    onError: (error) => 'Could not load user profile',
-    onData: (user) => 'Hello, ${user?.name}!',
+    onError: (error) => 'Could not load user: ${error.message}',
+    onData: (userOption) => userOption.fold(
+      onSome: (user) => 'Hello, ${user.name}!',
+      onNone: () => 'No user found',
+    ),
   );
 
   print('API response: $greeting');
 
+  // Pattern 2: Transform and handle
   apiResult
-      .mapData((user) => user.name)
       .mapError((error) => UserFacingException('Please try again later'))
-      .pick(
+      .fold(
         onError: (error) => print('UI Error: $error'),
-        onData: (name) => print('Display name: $name'),
+        onData: (userOption) {
+          userOption.fold(
+            onSome: (user) => print('Display user: ${user.name}'),
+            onNone: () => print('Show empty state'),
+          );
+        },
       );
 }
 
+void nullHandlingWithOptionsExample() {
+  // Traditional nullable approach (avoid this)
+  const String? nullableName = null;
+  final traditionalResult = nullableName?.toUpperCase() ?? 'UNKNOWN';
+  print('Traditional nullable: $traditionalResult');
+
+  // Option approach (preferred)
+  final nameOption = Option<String>.from(null);
+  final optionResult = nameOption.map((n) => n.toUpperCase()).orElse('UNKNOWN');
+  print('Option approach: $optionResult');
+
+  // Chaining operations safely
+  final processedName = Option.from('alice')
+      .filter((n) => n.length > 3)
+      .map((n) => n.toUpperCase())
+      .map((n) => 'User: $n')
+      .orElse('Invalid name');
+
+  print('Chained Option: $processedName\n');
+}
+
+void workflowExample() {
+  // Simulate: fetchUser → validateUser → createProfile
+  final fetchResult = DC<NetworkException, User>.data(
+    User('555', 'Frank', isVerified: true),
+  );
+
+  print('Step 1: Fetch user');
+  fetchResult.fold(
+    onError: (e) => print('  ✗ Failed: ${e.message}'),
+    onData: (user) => print('  ✓ Fetched: ${user.tryMaybe()}'),
+  );
+
+  // Validate user is verified
+  final validateResult = DC.forwardOrElse(
+    fetchResult,
+    (userData) => userData.filter((user) => user.isVerified),
+  );
+
+  print('Step 2: Validate user');
+  validateResult.fold(
+    onError: (e) => print('  ✗ Failed: ${e.message}'),
+    onData: (user) => user.fold(
+      onSome: (u) => print('  ✓ Validated: ${u.name}'),
+      onNone: () => print('  ✗ User not verified'),
+    ),
+  );
+
+  // Create profile from validated user
+  final profileResult = DC.forwardOrElse(
+    validateResult,
+    (userData) =>
+        userData.map((user) => Profile(user.id, 'Bio for ${user.name}')),
+  );
+
+  print('Step 3: Create profile');
+  final finalMessage = profileResult.fold(
+    onError: (e) => '  ✗ Failed: ${e.message}',
+    onData: (profile) => profile.fold(
+      onSome: (p) => '  ✓ Created: $p',
+      onNone: () => '  ✗ Cannot create profile: user not verified',
+    ),
+  );
+
+  print(finalMessage);
+}
+
 DC<NetworkException, User> simulateApiCall(String id) {
-  return DC<NetworkException, User>.data(User(id, 'Frank'));
+  // Simulate successful API call
+  return DC<NetworkException, User>.data(
+    User(id, 'SimulatedUser', isVerified: true),
+  );
 }
 
 /* ================= Starwars HTTP Example ================= */
@@ -296,7 +416,11 @@ class StarwarsDataSource {
       final body = await response.transform(utf8.decoder).join();
 
       if (response.statusCode != 200) {
-        return DC.error(Exception('No data available'));
+        return DC.error(Exception('HTTP ${response.statusCode}'));
+      }
+
+      if (body.isEmpty) {
+        return DC.nullData(); // Success but no data
       }
 
       final data = StarwarsResponse.fromJson(
@@ -310,35 +434,31 @@ class StarwarsDataSource {
   }
 }
 
-class StarwarsDataController {
+class StarwarsController {
   final _dataSource = StarwarsDataSource();
 
   Future<DC<Exception, StarwarsResponse>> getStarwarsCharacters() async {
     final result = await _dataSource.getStarwarsCharacters();
 
-    if (result.hasError) {
-      return DC.error(result.error!);
-    }
-
-    return DC.data(result.data);
+    // Transform errors to user-friendly messages
+    return result.mapError(
+      (error) => Exception('Failed to load Star Wars data: $error'),
+    );
   }
 }
 
-Future<void> starwarsExample() async {
-  print('=== Starwars HTTP Example ===');
-
-  final controller = StarwarsDataController();
+Future<void> starwarsHttpExample() async {
+  final controller = StarwarsController();
   final result = await controller.getStarwarsCharacters();
 
-  result.pick(
-    onError: (error) {
-      print('Starwars error: $error');
-    },
-    onData: (data) {
-      print('Starwars data: $data');
-    },
-    onNoData: () {
-      print('Starwars no data');
-    },
+  final message = result.fold(
+    onError: (error) => 'Error: $error',
+    onData: (data) => data.fold(
+      onSome: (character) =>
+          'Character: ${character.character}, Age: ${character.age}',
+      onNone: () => 'No characters found',
+    ),
   );
+
+  print(message);
 }

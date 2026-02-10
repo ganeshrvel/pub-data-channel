@@ -1,96 +1,234 @@
-/// Data Channel for Dart and Flutter.
+import 'package:data_channel/src/option.dart';
+import 'package:meta/meta.dart';
+
+// Type aliases
+typedef DCOption<T> = Option<T>;
+typedef DCSome<T> = Some<T>;
+typedef DCNone<T> = None<T>;
+
+/// Data Channel - A result type for handling errors and data.
 ///
-/// DC is a simple utility for handling exceptions and data routing.
-class DC<Err, Data> {
-  /// Returns just error.
-  factory DC.error(Err error) => DC._(error: error);
+/// Every DC is either:
+/// - DCError: contains an error
+/// - DCData: contains optional data
+sealed class DC<Err, Data> {
+  const DC();
 
-  const DC._({this.error, this.data});
+  /// Creates a DC with an error.
+  ///
+  /// ```dart
+  /// DC.error(Exception('Failed'))
+  /// ```
+  factory DC.error(Err error) = DCError<Err, Data>;
 
-  /// Returns just data.
-  factory DC.data(Data? data) => DC._(data: data);
+  /// Creates a DC with data.
+  ///
+  /// ```dart
+  /// DC.data(user)
+  /// ```
+  factory DC.data(Data data) = DCData<Err, Data>.some;
 
-  /// Forwards error or data.
-  factory DC.forward(DC<Err, dynamic> dc, Data? data) {
-    if (dc.hasError) {
-      return DC.error(dc.error as Err);
-    }
+  /// Creates a DC with null/no data.
+  ///
+  /// ```dart
+  /// DC.nullData()
+  /// ```
+  factory DC.nullData() = DCData<Err, Data>.none;
 
-    return DC.data(data);
+  /// Returns true if this is a DCError.
+  bool get hasError;
+
+  /// Returns true if this contains optional data (Some or None), false if this is an error.
+  ///
+  /// Note: This only indicates the variant type (DCData vs DCError), not whether data exists.
+  /// To check if actual data is present, use the Option methods within `fold`:
+  ///
+  /// ```dart
+  /// dc.fold(
+  ///   onError: (e) => ...,
+  ///   onData: (opt) => opt.isSome ? ... : ...,
+  /// )
+  /// ```
+  /// Or access the data field directly on DCData and use Option's `isSome`/`isNone`.
+  bool get hasOptionalData;
+
+  /// Applies a function based on whether this is an error or data.
+  ///
+  /// ```dart
+  /// dc.fold(
+  ///   onError: (e) => 'Error: $e',
+  ///   onData: (opt) => opt.fold(
+  ///     onSome: (v) => 'Value: $v',
+  ///     onNone: () => 'No value',
+  ///   ),
+  /// )
+  /// ```
+  U fold<U>({
+    required U Function(Err error) onError,
+    required U Function(Option<Data> data) onData,
+  });
+
+  /// Forwards error if present, otherwise creates new DCData with provided data.
+  ///
+  /// ```dart
+  /// final userResult = await fetchUser();
+  /// return DC.forward(userResult, profile);
+  /// ```
+  static DC<Err, NewData> forward<Err, Data, NewData>(
+    DC<Err, Data> dc,
+    NewData data,
+  ) {
+    return dc.fold(
+      onError: DC.error,
+      onData: (_) => DC.data(data),
+    );
   }
 
-  final Err? error;
-  final Data? data;
-
-  /// Checks whether an error is present.
-  bool get hasError => error != null;
-
-  /// Checks whether data is available.
-  bool get hasData => data != null;
-
-  /// Pick handler based on result state.
-  void pick({
-    void Function(Err error)? onError,
-    void Function(Data? data)? onNoError,
-    void Function(Data data)? onData,
-    void Function()? onNoData,
-  }) {
-    if (hasError) {
-      if (onError != null) {
-        onError(error as Err);
-      }
-
-      return;
-    }
-
-    if (onNoError != null) {
-      onNoError(data);
-
-      return;
-    }
-
-    if (hasData) {
-      if (onData != null) {
-        onData(data as Data);
-      }
-
-      return;
-    }
-
-    if (onNoData != null) {
-      onNoData();
-
-      return;
-    }
+  /// Forwards error if present, otherwise creates DCData with null.
+  ///
+  /// ```dart
+  /// return DC.forwardNull(userResult);
+  /// ```
+  static DC<Err, NewData> forwardNull<Err, Data, NewData>(
+    DC<Err, Data> dc,
+  ) {
+    return dc.fold(
+      onError: DC.error,
+      onData: (_) => DC.nullData(),
+    );
   }
 
-  /// Fold pattern - handle both cases with a simple function call.
-  T fold<T>({
-    required T Function(Err error) onError,
-    required T Function(Data? data) onData,
+  /// Forwards error if present, otherwise transforms data using Option methods.
+  ///
+  /// ```dart
+  /// // Return Some directly
+  /// DC.forwardOrElse(
+  ///   userResult,
+  ///   (_) => Some(DefaultProfile()),
+  /// )
+  ///
+  /// // Return None explicitly
+  /// DC.forwardOrElse(
+  ///   userResult,
+  ///   (_) => const None(),
+  /// )
+  ///
+  /// // Simple transform
+  /// DC.forwardOrElse(
+  ///   userResult,
+  ///   (userData) => userData.map((user) => Profile(user)),
+  /// )
+  ///
+  /// // With validation/filter
+  /// DC.forwardOrElse(
+  ///   userResult,
+  ///   (userData) => userData.filter((user) => user.isVerified),
+  /// )
+  ///
+  /// // With fallback
+  /// DC.forwardOrElse(
+  ///   userResult,
+  ///   (userData) => userData.map((user) => user.name).orElse('Guest'),
+  /// )
+  /// ```
+  static DC<Err, NewData> forwardOrElse<Err, Data, NewData>(
+    DC<Err, Data> dc,
+    Option<NewData> Function(Option<Data> data) builder,
+  ) {
+    return dc.fold(
+      onError: DC.error,
+      onData: (option) => DCData(builder(option)),
+    );
+  }
+
+  /// Maps the error value if present, preserves data otherwise.
+  ///
+  /// ```dart
+  /// dc.mapError((e) => UserFriendlyException(e.message))
+  /// ```
+  DC<NewErr, Data> mapError<NewErr>(NewErr Function(Err error) transform);
+}
+
+/// DC containing an error.
+@immutable
+final class DCError<Err, Data> extends DC<Err, Data> {
+  const DCError(this.error);
+
+  /// The error value.
+  final Err error;
+
+  @override
+  bool get hasError => true;
+
+  @override
+  bool get hasOptionalData => false;
+
+  @override
+  U fold<U>({
+    required U Function(Err error) onError,
+    required U Function(Option<Data> data) onData,
   }) {
-    if (hasError) {
-      return onError(error as Err);
-    }
+    return onError(error);
+  }
+
+  @override
+  DC<NewErr, Data> mapError<NewErr>(NewErr Function(Err error) transform) {
+    return DCError(transform(error));
+  }
+
+  @override
+  String toString() => 'DCError($error)';
+
+  @override
+  bool operator ==(Object other) {
+    return other is DCError<Err, Data> && other.error == error;
+  }
+
+  @override
+  int get hashCode => error.hashCode;
+}
+
+/// DC containing optional data.
+@immutable
+final class DCData<Err, Data> extends DC<Err, Data> {
+  const DCData(this.data);
+
+  /// Creates DCData with a value.
+  DCData.some(Data value) : data = Some(value);
+
+  /// Creates DCData with no value.
+  const DCData.none() : data = const None();
+
+  /// The optional data value.
+  final Option<Data> data;
+
+  @override
+  bool get hasError => false;
+
+  @override
+  bool get hasOptionalData => true;
+
+  @override
+  U fold<U>({
+    required U Function(Err error) onError,
+    required U Function(Option<Data> data) onData,
+  }) {
     return onData(data);
   }
 
-  /// Map the data value if present, preserve error otherwise.
-  DC<Err, NewData> mapData<NewData>(NewData Function(Data data) transform) {
-    if (hasError) {
-      return DC.error(error as Err);
-    }
-    return DC.data(transform(data as Data));
+  @override
+  DC<NewErr, Data> mapError<NewErr>(NewErr Function(Err error) transform) {
+    return DCData(data);
   }
 
-  /// Map the error value if present, preserve data otherwise.
-  DC<NewError, Data> mapError<NewError>(
-    NewError Function(Err error) transform,
-  ) {
-    if (hasError) {
-      return DC.error(transform(error as Err));
-    }
+  @override
+  String toString() => 'DCData($data)';
 
-    return DC.data(data);
+  @override
+  bool operator ==(Object other) {
+    return other is DCData<Err, Data> && other.data == data;
   }
+
+  @override
+  int get hashCode => data.hashCode;
 }
