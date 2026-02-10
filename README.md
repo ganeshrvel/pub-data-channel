@@ -461,12 +461,8 @@ Feel free to reach out at ganeshrvel@outlook.com
 
 - Author: [Ganesh Rathinavel](https://www.linkedin.com/in/ganeshrvel "Ganesh Rathinavel")
 - License: [MIT](https://github.com/ganeshrvel/openmtp/blob/master/LICENSE "MIT")
--
-
-Package: [pub.dev/packages/data_channel](https://pub.dev/packages/data_channel "https://pub.dev/packages/data_channel")
--
-Repository: [github.com/ganeshrvel/pub-data-channel](https://github.com/ganeshrvel/pub-data-channel/ "https://github.com/ganeshrvel/pub-data-channel")
-
+- Package: [pub.dev/packages/data_channel](https://pub.dev/packages/data_channel "https://pub.dev/packages/data_channel")
+- Repository: [github.com/ganeshrvel/pub-data-channel](https://github.com/ganeshrvel/pub-data-channel/ "https://github.com/ganeshrvel/pub-data-channel")
 - Email: ganeshrvel@outlook.com
 
 ### License
