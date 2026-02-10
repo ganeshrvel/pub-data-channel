@@ -7,6 +7,10 @@
 - Improved type safety and null handling
 - Enhanced documentation with additional examples
 
+## 2.0.0+1
+
+- Added null safety 
+
 ## 1.0.4+1
 
 - Fixed 'Dart_LoadScriptFromKernel: The binary program does not contain main' bug
