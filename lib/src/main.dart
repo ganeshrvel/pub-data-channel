@@ -72,9 +72,9 @@ sealed class DC<Err, Data> {
   ///
   /// ```dart
   /// final userResult = await fetchUser();
-  /// return DC.forward(userResult, profile);
+  /// return DC.forwardErrorOr(userResult, profile);
   /// ```
-  static DC<Err, NewData> forward<Err, Data, NewData>(
+  static DC<Err, NewData> forwardErrorOr<Err, Data, NewData>(
     DC<Err, Data> dc,
     NewData data,
   ) {
@@ -87,9 +87,9 @@ sealed class DC<Err, Data> {
   /// Forwards error if present, otherwise creates DCData with null.
   ///
   /// ```dart
-  /// return DC.forwardNull(userResult);
+  /// return DC.forwardErrorOrNull(userResult);
   /// ```
-  static DC<Err, NewData> forwardNull<Err, Data, NewData>(
+  static DC<Err, NewData> forwardErrorOrNull<Err, Data, NewData>(
     DC<Err, Data> dc,
   ) {
     return dc.fold(
@@ -102,36 +102,36 @@ sealed class DC<Err, Data> {
   ///
   /// ```dart
   /// // Return Some directly
-  /// DC.forwardOrElse(
+  /// DC.forwardErrorOrElse(
   ///   userResult,
   ///   (_) => Some(DefaultProfile()),
   /// )
   ///
   /// // Return None explicitly
-  /// DC.forwardOrElse(
+  /// DC.forwardErrorOrElse(
   ///   userResult,
   ///   (_) => const None(),
   /// )
   ///
   /// // Simple transform
-  /// DC.forwardOrElse(
+  /// DC.forwardErrorOrElse(
   ///   userResult,
   ///   (userData) => userData.map((user) => Profile(user)),
   /// )
   ///
   /// // With validation/filter
-  /// DC.forwardOrElse(
+  /// DC.forwardErrorOrElse(
   ///   userResult,
   ///   (userData) => userData.filter((user) => user.isVerified),
   /// )
   ///
   /// // With fallback
-  /// DC.forwardOrElse(
+  /// DC.forwardErrorOrElse(
   ///   userResult,
   ///   (userData) => userData.map((user) => user.name).orElse('Guest'),
   /// )
   /// ```
-  static DC<Err, NewData> forwardOrElse<Err, Data, NewData>(
+  static DC<Err, NewData> forwardErrorOrElse<Err, Data, NewData>(
     DC<Err, Data> dc,
     Option<NewData> Function(Option<Data> data) builder,
   ) {

@@ -53,10 +53,10 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 
 #### Static Methods
 
-- **`DC.forward(dc, newData)`** - Forward error if present, otherwise create new DCData with
+- **`DC.forwardErrorOr(dc, newData)`** - Forward error if present, otherwise create new DCData with
   provided data
-- **`DC.forwardNull(dc)`** - Forward error if present, otherwise create DCData with None
-- **`DC.forwardOrElse(dc, builder)`** - Forward error if present, otherwise transform data using
+- **`DC.forwardErrorOrNull(dc)`** - Forward error if present, otherwise create DCData with None
+- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise transform data using
   Option methods
 
 ### Option API
@@ -148,9 +148,9 @@ final widget = result.fold(
 );
 ```
 
-### DC.forward - Propagate Errors
+### DC.forwardErrorOr - Propagate Errors
 
-Eliminate redundant error checks when transforming data models. `DC.forward` automatically
+Eliminate redundant error checks when transforming data models. `DC.forwardErrorOr` automatically
 propagates errors while allowing you to transform successful data:
 
 ```dart
@@ -159,14 +159,14 @@ Future<DC<Exception, UserModel>> checkSomethingAndReturn() async {
 
   // If loginData has error, it's forwarded automatically
   // If loginData has success, old data is discarded and new UserModel is wrapped
-  return DC.forward(
+  return DC.forwardErrorOr(
     loginData,
     UserModel(id: 'some-id'),
   );
 }
 ```
 
-### DC.forwardNull - Propagate Errors, Discard Data
+### DC.forwardErrorOrNull - Propagate Errors, Discard Data
 
 When you want to acknowledge success but don't need to return data:
 
@@ -175,11 +175,11 @@ Future<DC<Exception, void>> deleteUser(String id) async {
   final result = await apiDeleteUser(id);
 
   // Forward error if present, otherwise return success with no data
-  return DC.forwardNull(result);
+  return DC.forwardErrorOrNull(result);
 }
 ```
 
-### DC.forwardOrElse - Transform with Option Methods
+### DC.forwardErrorOrElse - Transform with Option Methods
 
 The most powerful forwarding method - use Option transformations on the data:
 
@@ -188,7 +188,7 @@ Future<DC<Exception, Profile>> createProfile() async {
   final userResult = await fetchUser();
 
   // Return Some directly
-  return DC.forwardOrElse(
+  return DC.forwardErrorOrElse(
     userResult,
         (_) => Some(Profile.defaultProfile()),
   );
@@ -198,7 +198,7 @@ Future<DC<Exception, Profile>> createProfile() async {
 Future<DC<Exception, String>> getUserName() async {
   final userResult = await fetchUser();
 
-  return DC.forwardOrElse(
+  return DC.forwardErrorOrElse(
     userResult,
         (userData) => userData.map((user) => user.name),
   );
@@ -208,7 +208,7 @@ Future<DC<Exception, String>> getUserName() async {
 Future<DC<Exception, User>> getVerifiedUser() async {
   final userResult = await fetchUser();
 
-  return DC.forwardOrElse(
+  return DC.forwardErrorOrElse(
     userResult,
         (userData) => userData.filter((user) => user.isVerified),
   );
@@ -218,7 +218,7 @@ Future<DC<Exception, User>> getVerifiedUser() async {
 Future<DC<Exception, String>> getDisplayName() async {
   final userResult = await fetchUser();
 
-  return DC.forwardOrElse(
+  return DC.forwardErrorOrElse(
     userResult,
         (userData) => Some(userData.map((user) => user.name).orElse('Guest')),
   );
@@ -339,19 +339,19 @@ void main() {
     final userResult = await fetchUser(userId);
 
     // Step 2: Validate user is verified, forward error if any
-    final verifiedUserResult = DC.forwardOrElse(
+    final verifiedUserResult = DC.forwardErrorOrElse(
       userResult,
           (userData) => userData.filter((user) => user.isVerified),
     );
 
     // Step 3: Load profile data, forward error if any
-    final profileResult = DC.forwardOrElse(
+    final profileResult = DC.forwardErrorOrElse(
       verifiedUserResult,
           (userData) => userData.map((user) => user.profileId),
     );
 
     // Step 4: Transform to view model
-    return DC.forwardOrElse(
+    return DC.forwardErrorOrElse(
       profileResult,
           (profileIdOption) =>
           profileIdOption.map(

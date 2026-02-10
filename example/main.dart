@@ -69,8 +69,8 @@ void main() {
   basicDCUsageExample();
   optionBasicsExample();
   dcFoldExample();
-  dcForwardExample();
-  dcForwardOrElseExample();
+  dcForwardErrorOrExample();
+  dcForwardErrorOrElseExample();
   dcMapErrorExample();
   chainedOperationsExample();
   realWorldApiExample();
@@ -87,6 +87,9 @@ void basicDCUsageExample() {
   print('Success case:');
   print('  hasError: ${successResult.hasError}');
   print('  hasOptionalData: ${successResult.hasOptionalData}');
+  // Expected:
+  //   hasError: false
+  //   hasOptionalData: true
 
   // Error case
   final errorResult = DC<NetworkException, User>.error(
@@ -96,12 +99,18 @@ void basicDCUsageExample() {
   print('Error case:');
   print('  hasError: ${errorResult.hasError}');
   print('  hasOptionalData: ${errorResult.hasOptionalData}\n');
+  // Expected:
+  //   hasError: true
+  //   hasOptionalData: false
 
   // Success with no data
   final nullDataResult = DC<NetworkException, User>.nullData();
   print('Null data case:');
   print('  hasError: ${nullDataResult.hasError}');
   print('  hasOptionalData: ${nullDataResult.hasOptionalData}\n');
+  // Expected:
+  //   hasError: false
+  //   hasOptionalData: true
 }
 
 void optionBasicsExample() {
@@ -111,19 +120,27 @@ void optionBasicsExample() {
   final fromNullable = Option.from(null);
 
   print('Some(42).isSome: ${some.isSome}');
+  // Expected: Some(42).isSome: true
+
   print('None().isNone: ${none.isNone}');
+  // Expected: None().isNone: true
+
   print('Option.from(null).isNone: ${fromNullable.isNone}');
+  // Expected: Option.from(null).isNone: true
 
   // Using Option methods
   final doubled = some.map((x) => x * 2);
   print('Some(42).map(x * 2): ${doubled.tryMaybe()}');
+  // Expected: Some(42).map(x * 2): 84
 
   final withDefault = none.orElse(0);
   print('None().orElse(0): $withDefault');
+  // Expected: None().orElse(0): 0
 
   // Filtering
   final evenOnly = some.filter((x) => x.isEven);
   print('Some(42).filter(isEven): ${evenOnly.tryMaybe()}\n');
+  // Expected: Some(42).filter(isEven): 42
 }
 
 void dcFoldExample() {
@@ -140,6 +157,7 @@ void dcFoldExample() {
   );
 
   print('Success fold: $message');
+  // Expected: Success fold: Welcome Bob!
 
   final errorResult = DC<NetworkException, User>.error(
     NetworkException('Network error'),
@@ -151,15 +169,15 @@ void dcFoldExample() {
   );
 
   print('Error fold: $errorMessage\n');
+  // Expected: Error fold: Error: Network error
 }
 
-void dcForwardExample() {
-  // Success case - transforms data
+void dcForwardErrorOrExample() {
   final userResult = DC<NetworkException, User>.data(
     User('111', 'Charlie'),
   );
 
-  final profileResult = DC.forward(
+  final profileResult = DC.forwardErrorOr(
     userResult,
     Profile('111', 'Software Developer'),
   );
@@ -169,13 +187,15 @@ void dcForwardExample() {
     onError: (e) => print('  Error: $e'),
     onData: (profile) => print('  Profile: ${profile.tryMaybe()}'),
   );
+  // Expected:
+  //   Profile: Profile(userId: 111, bio: Software Developer)
 
   // Error case - forwards error
   final errorResult = DC<NetworkException, User>.error(
     NetworkException('Fetch failed'),
   );
 
-  final errorProfileResult = DC.forward(
+  final errorProfileResult = DC.forwardErrorOr(
     errorResult,
     Profile('default', 'default'),
   );
@@ -185,15 +205,17 @@ void dcForwardExample() {
     onError: (e) => print('  Error forwarded: $e'),
     onData: (profile) => print('  Profile: ${profile.tryMaybe()}'),
   );
+  // Expected:
+  //   Error forwarded: NetworkException: Fetch failed
 }
 
-void dcForwardOrElseExample() {
+void dcForwardErrorOrElseExample() {
   final userResult = DC<NetworkException, User>.data(
     User('222', 'Diana', isVerified: true),
   );
 
   // Example 1: Simple map
-  final nameResult = DC.forwardOrElse(
+  final nameResult = DC.forwardErrorOrElse(
     userResult,
     (userData) => userData.map((user) => user.name),
   );
@@ -203,9 +225,11 @@ void dcForwardOrElseExample() {
     onError: (e) => print('  Error: $e'),
     onData: (name) => print('  Name: ${name.orElse("Unknown")}'),
   );
+  // Expected:
+  //   Name: Diana
 
   // Example 2: Filter with validation
-  final verifiedResult = DC.forwardOrElse(
+  final verifiedResult = DC.forwardErrorOrElse(
     userResult,
     (userData) => userData.filter((user) => user.isVerified),
   );
@@ -218,9 +242,11 @@ void dcForwardOrElseExample() {
       onNone: () => print('  User not verified'),
     ),
   );
+  // Expected:
+  //   Verified user: Diana
 
   // Example 3: Provide fallback
-  final displayNameResult = DC.forwardOrElse(
+  final displayNameResult = DC.forwardErrorOrElse(
     userResult,
     (userData) => Some(userData.map((user) => user.name).orElse('Guest')),
   );
@@ -230,6 +256,8 @@ void dcForwardOrElseExample() {
     onError: (e) => print('  Error: $e'),
     onData: (name) => print('  Display name: ${name.tryMaybe()}'),
   );
+  // Expected:
+  //   Display name: Diana
 }
 
 void dcMapErrorExample() {
@@ -247,12 +275,16 @@ void dcMapErrorExample() {
     onError: (e) => print('  $e'),
     onData: (_) => {},
   );
+  // Expected:
+  //   NetworkException: 502 Bad Gateway
 
   print('Mapped error:');
   friendlyResult.fold<void>(
     onError: (e) => print('  $e'),
     onData: (_) => {},
   );
+  // Expected:
+  //   UserFacingException: Service temporarily unavailable
 }
 
 void chainedOperationsExample() {
@@ -261,7 +293,7 @@ void chainedOperationsExample() {
   );
 
   DC
-      .forwardOrElse(
+      .forwardErrorOrElse(
         userResult,
         (userData) => userData
             .filter((user) => user.isVerified)
@@ -272,6 +304,7 @@ void chainedOperationsExample() {
         onError: (e) => print('Error: $e'),
         onData: (name) => print('Processed name: ${name.orElse("UNKNOWN")}'),
       );
+  // Expected: Processed name: EVE
 }
 
 void realWorldApiExample() {
@@ -287,6 +320,7 @@ void realWorldApiExample() {
   );
 
   print('API response: $greeting');
+  // Expected: API response: Hello, SimulatedUser!
 
   // Pattern 2: Transform and handle
   apiResult
@@ -300,6 +334,7 @@ void realWorldApiExample() {
           );
         },
       );
+  // Expected: Display user: SimulatedUser
 }
 
 void nullHandlingWithOptionsExample() {
@@ -307,11 +342,13 @@ void nullHandlingWithOptionsExample() {
   const String? nullableName = null;
   final traditionalResult = nullableName?.toUpperCase() ?? 'UNKNOWN';
   print('Traditional nullable: $traditionalResult');
+  // Expected: Traditional nullable: UNKNOWN
 
   // Option approach (preferred)
   final nameOption = Option<String>.from(null);
   final optionResult = nameOption.map((n) => n.toUpperCase()).orElse('UNKNOWN');
   print('Option approach: $optionResult');
+  // Expected: Option approach: UNKNOWN
 
   // Chaining operations safely
   final processedName = Option.from('alice')
@@ -321,6 +358,7 @@ void nullHandlingWithOptionsExample() {
       .orElse('Invalid name');
 
   print('Chained Option: $processedName\n');
+  // Expected: Chained Option: User: ALICE
 }
 
 void workflowExample() {
@@ -331,27 +369,31 @@ void workflowExample() {
 
   print('Step 1: Fetch user');
   fetchResult.fold(
-    onError: (e) => print('  ✗ Failed: ${e.message}'),
-    onData: (user) => print('  ✓ Fetched: ${user.tryMaybe()}'),
+    onError: (e) => print('   Failed: ${e.message}'),
+    onData: (user) => print('   Fetched: ${user.tryMaybe()}'),
   );
+  // Expected:
+  //   Fetched: User(id: 555, name: Frank, verified: true)
 
   // Validate user is verified
-  final validateResult = DC.forwardOrElse(
+  final validateResult = DC.forwardErrorOrElse(
     fetchResult,
     (userData) => userData.filter((user) => user.isVerified),
   );
 
   print('Step 2: Validate user');
   validateResult.fold(
-    onError: (e) => print('  ✗ Failed: ${e.message}'),
+    onError: (e) => print('   Failed: ${e.message}'),
     onData: (user) => user.fold(
-      onSome: (u) => print('  ✓ Validated: ${u.name}'),
-      onNone: () => print('  ✗ User not verified'),
+      onSome: (u) => print('   Validated: ${u.name}'),
+      onNone: () => print('   User not verified'),
     ),
   );
+  // Expected:
+  //   Validated: Frank
 
   // Create profile from validated user
-  final profileResult = DC.forwardOrElse(
+  final profileResult = DC.forwardErrorOrElse(
     validateResult,
     (userData) =>
         userData.map((user) => Profile(user.id, 'Bio for ${user.name}')),
@@ -359,14 +401,16 @@ void workflowExample() {
 
   print('Step 3: Create profile');
   final finalMessage = profileResult.fold(
-    onError: (e) => '  ✗ Failed: ${e.message}',
+    onError: (e) => '   Failed: ${e.message}',
     onData: (profile) => profile.fold(
-      onSome: (p) => '  ✓ Created: $p',
-      onNone: () => '  ✗ Cannot create profile: user not verified',
+      onSome: (p) => '   Created: $p',
+      onNone: () => '   Cannot create profile: user not verified',
     ),
   );
 
   print(finalMessage);
+  // Expected:
+  //   Created: Profile(userId: 555, bio: Bio for Frank)
 }
 
 DC<NetworkException, User> simulateApiCall(String id) {
@@ -461,4 +505,8 @@ Future<void> starwarsHttpExample() async {
   );
 
   print(message);
+  // Expected (if API call succeeds):
+  //   Character: Luke Skywalker, Age: 19
+  // Expected (if API call fails):
+  //   Error: Exception: Failed to load Star Wars data: ...
 }

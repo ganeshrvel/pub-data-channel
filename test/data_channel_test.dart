@@ -275,13 +275,13 @@ void main() {
     });
   });
 
-  group('DC.forward - Error Propagation', () {
+  group('DC.forwardErrorOr - Error Propagation', () {
     test('DCError forwards error, ignores new data', () {
       final userResult =
           DC<NetworkError, User>.error(const NetworkError('Failed'));
       const profile = Profile('1', 'Bio');
 
-      final result = DC.forward(userResult, profile);
+      final result = DC.forwardErrorOr(userResult, profile);
 
       expect(result.hasError, true);
       expect(result.hasOptionalData, false);
@@ -295,19 +295,19 @@ void main() {
       final userResult =
           DC<NetworkError, User>.error(const NetworkError('Failed'));
 
-      DC.forward(userResult, const User('999', 'NewUser')).fold(
+      DC.forwardErrorOr(userResult, const User('999', 'NewUser')).fold(
             onError: (e) => expect(e, isA<NetworkError>()),
             onData: (opt) => fail('Should not have data'),
           );
     });
   });
 
-  group('DC.forward - Success Transformation', () {
+  group('DC.forwardErrorOr - Success Transformation', () {
     test('DCData discards old data, creates new DCData with new value', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
       const profile = Profile('1', 'Software Developer');
 
-      final result = DC.forward(userResult, profile);
+      final result = DC.forwardErrorOr(userResult, profile);
 
       expect(result.hasError, false);
       expect(result.hasOptionalData, true);
@@ -324,7 +324,7 @@ void main() {
       final userResult = DC<NetworkError, User>.nullData();
       const profile = Profile('1', 'Bio');
 
-      final result = DC.forward(userResult, profile);
+      final result = DC.forwardErrorOr(userResult, profile);
 
       expect(result.hasOptionalData, true);
       result.fold(
@@ -337,13 +337,13 @@ void main() {
     });
   });
 
-  group('DC.forward - Type Changes', () {
+  group('DC.forwardErrorOr - Type Changes', () {
     test('forward changes Data type (User → Profile)', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
       const profile = Profile('1', 'Bio');
 
       final result =
-          DC.forward<NetworkError, User, Profile>(userResult, profile);
+          DC.forwardErrorOr<NetworkError, User, Profile>(userResult, profile);
 
       expect(result, isA<DC<NetworkError, Profile>>());
       result.fold(
@@ -355,7 +355,7 @@ void main() {
     test('forward changes Data type (User → String)', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forward(userResult, 'Success message');
+      final result = DC.forwardErrorOr(userResult, 'Success message');
 
       expect(result, isA<DC<NetworkError, String>>());
       result.fold(
@@ -365,11 +365,11 @@ void main() {
     });
   });
 
-  group('DC.forward - Chaining', () {
+  group('DC.forwardErrorOr - Chaining', () {
     test('chain multiple forward calls', () {
       final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
-      final step2 = DC.forward(step1, const Profile('1', 'Bio'));
-      final step3 = DC.forward(step2, 'Final result');
+      final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Bio'));
+      final step3 = DC.forwardErrorOr(step2, 'Final result');
 
       expect(step3.hasOptionalData, true);
       step3.fold(
@@ -381,8 +381,8 @@ void main() {
     test('chain stops at first error', () {
       final step1 =
           DC<NetworkError, User>.error(const NetworkError('Failed at step 1'));
-      final step2 = DC.forward(step1, const Profile('1', 'Bio'));
-      final step3 = DC.forward(step2, 'Final result');
+      final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Bio'));
+      final step3 = DC.forwardErrorOr(step2, 'Final result');
 
       expect(step3.hasError, true);
       step3.fold(
@@ -392,12 +392,12 @@ void main() {
     });
   });
 
-  group('DC.forwardNull - Error Propagation', () {
+  group('DC.forwardErrorOrNull - Error Propagation', () {
     test('DCError forwards error', () {
       final userResult =
           DC<NetworkError, User>.error(const NetworkError('Failed'));
 
-      final result = DC.forwardNull<NetworkError, User, Profile>(userResult);
+      final result = DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
 
       expect(result.hasError, true);
       result.fold(
@@ -407,11 +407,11 @@ void main() {
     });
   });
 
-  group('DC.forwardNull - Success to Null', () {
+  group('DC.forwardErrorOrNull - Success to Null', () {
     test('DCData with Some becomes DCData with None', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardNull<NetworkError, User, Profile>(userResult);
+      final result = DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
 
       expect(result.hasOptionalData, true);
       result.fold(
@@ -426,7 +426,7 @@ void main() {
     test('DCData with None stays DCData with None', () {
       final userResult = DC<NetworkError, User>.nullData();
 
-      final result = DC.forwardNull<NetworkError, User, Profile>(userResult);
+      final result = DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
 
       expect(result.hasOptionalData, true);
       result.fold(
@@ -436,24 +436,24 @@ void main() {
     });
   });
 
-  group('DC.forwardNull - Type Changes', () {
-    test('forwardNull changes Data type parameter', () {
+  group('DC.forwardErrorOrNull - Type Changes', () {
+    test('forwardErrorOrNull changes Data type parameter', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardNull<NetworkError, User, String>(userResult);
+      final result = DC.forwardErrorOrNull<NetworkError, User, String>(userResult);
 
       expect(result, isA<DC<NetworkError, String>>());
       expect(result.hasOptionalData, true);
     });
   });
 
-  group('DC.forwardOrElse - Error Propagation', () {
+  group('DC.forwardErrorOrElse - Error Propagation', () {
     test('DCError forwards error, builder NOT called', () {
       final userResult =
           DC<NetworkError, User>.error(const NetworkError('Failed'));
       var builderCalled = false;
 
-      final result = DC.forwardOrElse<NetworkError, User, Profile>(
+      final result = DC.forwardErrorOrElse<NetworkError, User, Profile>(
         userResult,
         (userData) {
           builderCalled = true;
@@ -466,11 +466,11 @@ void main() {
     });
   });
 
-  group('DC.forwardOrElse - Return Some Directly', () {
+  group('DC.forwardErrorOrElse - Return Some Directly', () {
     test('builder returns Some(value)', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (_) => const Some(Profile('1', 'Default Bio')),
       );
@@ -489,7 +489,7 @@ void main() {
       final userResult = DC<NetworkError, User>.nullData();
 
       DC
-          .forwardOrElse(
+          .forwardErrorOrElse(
             userResult,
             (_) => const Some(Profile('999', 'Fallback')),
           )
@@ -500,11 +500,11 @@ void main() {
     });
   });
 
-  group('DC.forwardOrElse - Return None Directly', () {
+  group('DC.forwardErrorOrElse - Return None Directly', () {
     test('builder returns None explicitly', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse<NetworkError, User, Profile>(
+      final result = DC.forwardErrorOrElse<NetworkError, User, Profile>(
         userResult,
         (_) => const None(),
       );
@@ -520,12 +520,12 @@ void main() {
     });
   });
 
-  group('DC.forwardOrElse - Transform with map', () {
+  group('DC.forwardErrorOrElse - Transform with map', () {
     test('builder uses option.map() to transform', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
       DC
-          .forwardOrElse(
+          .forwardErrorOrElse(
             userResult,
             (userData) => userData
                 .map((user) => Profile(user.id, 'Bio for ${user.name}')),
@@ -543,7 +543,7 @@ void main() {
       final userResult = DC<NetworkError, User>.nullData();
 
       DC
-          .forwardOrElse(
+          .forwardErrorOrElse(
             userResult,
             (userData) => userData.map((user) => Profile(user.id, user.name)),
           )
@@ -554,14 +554,14 @@ void main() {
     });
   });
 
-  group('DC.forwardOrElse - Filter with Validation', () {
+  group('DC.forwardErrorOrElse - Filter with Validation', () {
     test('builder uses filter, passes validation', () {
       final userResult = DC<NetworkError, User>.data(
         const User('1', 'Alice', isVerified: true),
       );
 
       DC
-          .forwardOrElse(
+          .forwardErrorOrElse(
             userResult,
             (userData) => userData
                 .filter((user) => user.isVerified)
@@ -581,7 +581,7 @@ void main() {
         const User('1', 'Alice', isVerified: false),
       );
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (userData) => userData
             .filter((user) => user.isVerified)
@@ -595,11 +595,11 @@ void main() {
     });
   });
 
-  group('DC.forwardOrElse - Fallback Chaining', () {
+  group('DC.forwardErrorOrElse - Fallback Chaining', () {
     test('builder uses map with orElse fallback (Some case)', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (userData) => Some(userData.map((user) => user.name).orElse('Guest')),
       );
@@ -613,7 +613,7 @@ void main() {
     test('builder uses map with orElse fallback (None case)', () {
       final userResult = DC<NetworkError, User>.nullData();
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (userData) => Some(userData.map((user) => user.name).orElse('Guest')),
       );
@@ -625,11 +625,11 @@ void main() {
     });
   });
 
-  group('DC.forwardOrElse - Type Transformations', () {
+  group('DC.forwardErrorOrElse - Type Transformations', () {
     test('User → Profile transformation', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (userData) => userData.map((user) => Profile(user.id, 'Bio')),
       );
@@ -640,7 +640,7 @@ void main() {
     test('User → String transformation', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (userData) => userData.map((user) => user.name),
       );
@@ -651,7 +651,7 @@ void main() {
     test('User → int transformation', () {
       final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         userResult,
         (userData) => userData.map((user) => user.name.length),
       );
@@ -775,7 +775,7 @@ void main() {
 
     test('mapError after forward preserves error', () {
       final step1 = DC<NetworkError, User>.error(const NetworkError('Failed'));
-      final step2 = DC.forward(step1, const Profile('1', 'Bio'));
+      final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Bio'));
       final step3 = step2.mapError((e) => ValidationError(e.message));
 
       expect(step3.hasError, true);
@@ -787,11 +787,11 @@ void main() {
   });
 
   group('Complex Workflows - Error Path End-to-End', () {
-    test('error → forward → forwardOrElse → fold (stays error)', () {
+    test('error → forward → forwardErrorOrElse → fold (stays error)', () {
       final step1 =
           DC<NetworkError, User>.error(const NetworkError('Initial error'));
-      final step2 = DC.forward(step1, const Profile('1', 'Bio'));
-      final step3 = DC.forwardOrElse(
+      final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Bio'));
+      final step3 = DC.forwardErrorOrElse(
         step2,
         (data) => data.map((p) => p.bio),
       );
@@ -808,7 +808,7 @@ void main() {
       final step1 =
           DC<NetworkError, User>.error(const NetworkError('Network issue'));
       final step2 = step1.mapError((e) => ValidationError(e.message));
-      final step3 = DC.forward(step2, 'Some data');
+      final step3 = DC.forwardErrorOr(step2, 'Some data');
 
       step3.fold(
         onError: (e) {
@@ -821,10 +821,10 @@ void main() {
   });
 
   group('Complex Workflows - Success Path End-to-End', () {
-    test('data → forward → forwardOrElse → fold (transforms data)', () {
+    test('data → forward → forwardErrorOrElse → fold (transforms data)', () {
       final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
-      final step2 = DC.forward(step1, const Profile('1', 'Software Developer'));
-      final step3 = DC.forwardOrElse(
+      final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Software Developer'));
+      final step3 = DC.forwardErrorOrElse(
         step2,
         (profileOpt) => profileOpt.map((p) => 'Bio: ${p.bio}'),
       );
@@ -837,13 +837,13 @@ void main() {
       expect(result, 'Bio: Software Developer');
     });
 
-    test('data → forwardOrElse with map → forward → fold', () {
+    test('data → forwardErrorOrElse with map → forward → fold', () {
       final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
-      final step2 = DC.forwardOrElse(
+      final step2 = DC.forwardErrorOrElse(
         step1,
         (userOpt) => userOpt.map((u) => Profile(u.id, u.name)),
       );
-      final step3 = DC.forward(step2, 'Final result');
+      final step3 = DC.forwardErrorOr(step2, 'Final result');
 
       final result = step3.fold(
         onError: (_) => 'Error',
@@ -855,17 +855,17 @@ void main() {
   });
 
   group('Complex Workflows - Mixed Scenarios', () {
-    test('forwardOrElse filter fails, then forward continues with None', () {
+    test('forwardErrorOrElse filter fails, then forward continues with None', () {
       final step1 = DC<NetworkError, User>.data(
         const User('1', 'Alice', isVerified: false),
       );
-      final step2 = DC.forwardOrElse(
+      final step2 = DC.forwardErrorOrElse(
         step1,
         (userOpt) => userOpt
             .filter((u) => u.isVerified)
             .map((u) => Profile(u.id, u.name)),
       );
-      final step3 = DC.forward(step2, 'Completed');
+      final step3 = DC.forwardErrorOr(step2, 'Completed');
 
       final result = step3.fold(
         onError: (_) => 'Error',
@@ -875,9 +875,9 @@ void main() {
       expect(result, 'Completed');
     });
 
-    test('nullData → forwardOrElse with fallback → fold', () {
+    test('nullData → forwardErrorOrElse with fallback → fold', () {
       final step1 = DC<NetworkError, User>.nullData();
-      final step2 = DC.forwardOrElse(
+      final step2 = DC.forwardErrorOrElse(
         step1,
         (userOpt) => Some(
           userOpt.map((u) => u.name).orElse('Guest User'),
@@ -901,13 +901,13 @@ void main() {
       );
 
       // Validate user is verified
-      final validateResult = DC.forwardOrElse(
+      final validateResult = DC.forwardErrorOrElse(
         fetchResult,
         (userOpt) => userOpt.filter((u) => u.isVerified),
       );
 
       // Create profile from validated user
-      final profileResult = DC.forwardOrElse(
+      final profileResult = DC.forwardErrorOrElse(
         validateResult,
         (userOpt) => userOpt.map((u) => Profile(u.id, 'Bio for ${u.name}')),
       );
@@ -929,12 +929,12 @@ void main() {
         const User('1', 'Alice', isVerified: false),
       );
 
-      final validateResult = DC.forwardOrElse(
+      final validateResult = DC.forwardErrorOrElse(
         fetchResult,
         (userOpt) => userOpt.filter((u) => u.isVerified),
       );
 
-      final profileResult = DC.forwardOrElse(
+      final profileResult = DC.forwardErrorOrElse(
         validateResult,
         (userOpt) => userOpt.map((u) => Profile(u.id, 'Bio for ${u.name}')),
       );
@@ -955,12 +955,12 @@ void main() {
         const NetworkError('Connection timeout'),
       );
 
-      final validateResult = DC.forwardOrElse(
+      final validateResult = DC.forwardErrorOrElse(
         fetchResult,
         (userOpt) => userOpt.filter((u) => u.isVerified),
       );
 
-      final profileResult = DC.forwardOrElse(
+      final profileResult = DC.forwardErrorOrElse(
         validateResult,
         (userOpt) => userOpt.map((u) => Profile(u.id, 'Bio for ${u.name}')),
       );
@@ -984,17 +984,17 @@ void main() {
       var builder2Called = false;
       var builder3Called = false;
 
-      final step2 = DC.forwardOrElse(step1, (opt) {
+      final step2 = DC.forwardErrorOrElse(step1, (opt) {
         builder1Called = true;
         return opt.map((u) => Profile(u.id, u.name));
       });
 
-      final step3 = DC.forwardOrElse(step2, (opt) {
+      final step3 = DC.forwardErrorOrElse(step2, (opt) {
         builder2Called = true;
         return opt.map((p) => p.bio);
       });
 
-      final step4 = DC.forwardOrElse(step3, (opt) {
+      final step4 = DC.forwardErrorOrElse(step3, (opt) {
         builder3Called = true;
         return opt.map((bio) => bio.toUpperCase());
       });
@@ -1016,12 +1016,12 @@ void main() {
       var builder1Called = false;
       var builder2Called = false;
 
-      final step2 = DC.forwardOrElse(step1, (opt) {
+      final step2 = DC.forwardErrorOrElse(step1, (opt) {
         builder1Called = true;
         return opt.filter((u) => u.isVerified);
       });
 
-      final step3 = DC.forwardOrElse(step2, (opt) {
+      final step3 = DC.forwardErrorOrElse(step2, (opt) {
         builder2Called = true;
         return opt.filter((u) => u.name.length > 10); // This fails
       });
@@ -1053,7 +1053,7 @@ void main() {
     test('Operations on DCData with Some(null)', () {
       final dc = DC<NetworkError, int?>.data(null);
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         dc,
         (opt) => opt.map((value) => value == null ? 0 : value * 2),
       );
@@ -1070,7 +1070,7 @@ void main() {
       final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
       const newUser = User('2', 'Bob');
 
-      final result = DC.forward(dc, newUser);
+      final result = DC.forwardErrorOr(dc, newUser);
 
       result.fold(
         onError: (_) => fail('Should not have error'),
@@ -1091,10 +1091,10 @@ void main() {
       );
     });
 
-    test('forwardOrElse with identity transform', () {
+    test('forwardErrorOrElse with identity transform', () {
       final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(dc, (opt) => opt);
+      final result = DC.forwardErrorOrElse(dc, (opt) => opt);
 
       result.fold(
         onError: (_) => fail('Should not have error'),
@@ -1104,10 +1104,10 @@ void main() {
   });
 
   group('Edge Cases - Empty Transformations', () {
-    test('forwardOrElse that always returns None', () {
+    test('forwardErrorOrElse that always returns None', () {
       final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse<NetworkError, User, String>(
+      final result = DC.forwardErrorOrElse<NetworkError, User, String>(
         dc,
         (_) => const None(),
       );
@@ -1118,10 +1118,10 @@ void main() {
       );
     });
 
-    test('forwardOrElse with filter that always fails', () {
+    test('forwardErrorOrElse with filter that always fails', () {
       final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
-      final result = DC.forwardOrElse(
+      final result = DC.forwardErrorOrElse(
         dc,
         (opt) => opt.filter((_) => false),
       );
@@ -1219,7 +1219,7 @@ void main() {
 
       expect(dc1, isA<DC<NetworkError, User>>());
 
-      final dc2 = DC.forward(dc1, const Profile('1', 'Bio'));
+      final dc2 = DC.forwardErrorOr(dc1, const Profile('1', 'Bio'));
       expect(dc2, isA<DC<NetworkError, Profile>>());
 
       final dc3 = dc2.mapError((e) => ValidationError(e.message));
@@ -1230,10 +1230,10 @@ void main() {
       final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
 
       // Type inference should work without explicit type parameters
-      final step2 = DC.forward(step1, 'Success');
+      final step2 = DC.forwardErrorOr(step1, 'Success');
       expect(step2, isA<DC<NetworkError, String>>());
 
-      final step3 = DC.forwardNull<NetworkError, User, String>(step1);
+      final step3 = DC.forwardErrorOrNull<NetworkError, User, String>(step1);
       expect(step3, isA<DC<NetworkError, String>>());
     });
   });
@@ -1269,14 +1269,14 @@ void main() {
       expect(result, 'User: Alice');
     });
 
-    test('Option operations in forwardOrElse - chaining map, filter, orElse',
+    test('Option operations in forwardErrorOrElse - chaining map, filter, orElse',
         () {
       final dc = DC<NetworkError, User>.data(
         const User('1', 'Alice', isVerified: true),
       );
 
       DC
-          .forwardOrElse(
+          .forwardErrorOrElse(
             dc,
             (userOpt) => Some(
               userOpt
@@ -1291,12 +1291,12 @@ void main() {
           );
     });
 
-    test('forwardOrElse with complex Option chain', () {
+    test('forwardErrorOrElse with complex Option chain', () {
       final dc =
           DC<NetworkError, User>.data(const User('1', 'A', isVerified: false));
 
       DC
-          .forwardOrElse(
+          .forwardErrorOrElse(
             dc,
             (userOpt) => userOpt
                 .filter((u) => u.isVerified)

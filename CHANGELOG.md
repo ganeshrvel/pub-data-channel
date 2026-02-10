@@ -1,8 +1,8 @@
 ## 4.0.0
 
 - Requires Dart 3.0+ for sealed class support
-- Breaking: Complete API redesign - removed `pick()`, `mapData()`; added `fold()`, `forward()`,
-  `forwardOrElse()`
+- Breaking: Complete API redesign - removed `pick()`, `mapData()`; added `fold()`, `forwardErrorOr()`,
+  `forwardErrorOrElse()`
 - Breaking: `DCData` now contains `Option<Data>` (Some/None pattern) instead of nullable types
 - New: `mapError()` for error transformations, comprehensive Option API for null-safety
 
