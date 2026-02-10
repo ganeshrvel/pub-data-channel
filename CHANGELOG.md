@@ -1,9 +1,11 @@
+## 3.0.0+2
+- Changelog updates
+
 ## 3.0.0+1
 - Readme updates
 
 ## 3.0.0
 
-- **Breaking Change**: Requires Dart SDK `>=3.0.0 <4.0.0`
 - Added `fold` method for exhaustive pattern matching with required handlers
 - Added `mapData` method to transform successful data while preserving errors
 - Added `mapError` method to transform errors while preserving data
