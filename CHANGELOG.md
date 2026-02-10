@@ -1,3 +1,7 @@
+## 4.0.0+2
+
+- Readme updates
+
 ## 4.0.0+1
 
 - Readme updates

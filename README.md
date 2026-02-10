@@ -23,8 +23,8 @@ Dart applications. Rather than cluttering your code with try-catch blocks and nu
 
 **What version to use**
 
-- Use `data_channel` 4.0.0 and above if you have **Dart SDK >= 3.0.0**
-- Use `data_channel` 3.0.0+2 and below if you have **Dart SDK >= 2.12.0**
+* Use `data_channel` 4.0.0 and above for Dart SDK >= 3.0.0
+* Use `data_channel` 3.0.0+2 for Dart SDK >= 2.12.0 and < 3.0.0
 
 ### Installation
 
