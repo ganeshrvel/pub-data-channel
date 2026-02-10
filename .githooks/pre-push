@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
+set -e
 
+# shellcheck disable=SC2006
 if [[ `git status --porcelain` ]]; then
-  printf "\e[31;1m%s\e[0m\n" 'This script needs to run against committed code only. Please commit or stash you changes.'
+  printf "\e[31;1m%s\e[0m\n" 'This script needs to run against committed code only. Please commit or stash your changes.'
   exit 1
 fi

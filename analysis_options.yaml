@@ -1,30 +1,23 @@
-include: package:lint/analysis_options.yaml
-
-linter:
-  rules:
-    - prefer_single_quotes
-    - omit_local_variable_types
-    - avoid_relative_lib_imports
-    - await_only_futures
-    - prefer_spread_collections
-    - prefer_typing_uninitialized_variables
+include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:
-  strong-mode:
-    implicit-casts: false
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.gr.dart"
+    - "**/*.freezed.dart"
+    - "vendor/**"
+    - "resources/**"
 
   errors:
-    non_constant_identifier_names: ignore
-    avoid_classes_with_only_static_members: ignore
     prefer_const_declarations: error
-    constant_identifier_names: ignore
+    directives_ordering: warning
+    invalid_use_of_visible_for_testing_member: error
     missing_required_param: error
     parameter_assignments: error
-    unused_import: error
+    prefer_const_constructors: error
+    unused_import: warning
     sort_constructors_first: warning
     unused_field: warning
-    unused_element: ignore
-    overridden_fields: ignore
     unawaited_futures: warning
     unnecessary_final: error
     prefer_single_quotes: error
@@ -33,9 +26,19 @@ analyzer:
     avoid_relative_lib_imports: error
     await_only_futures: error
     prefer_typing_uninitialized_variables: error
+    deprecated_member_use: error
+    curly_braces_in_flow_control_structures: error
 
-  exclude:
-    - "vendors/**"
-    - "resources/**"
-    - "**/*.g.dart"
-    - "**/*.gr.dart"
+    sort_pub_dependencies: ignore
+    lines_longer_than_80_chars: ignore
+    avoid_redundant_argument_values: ignore
+    document_ignores: ignore
+    flutter_style_todos: ignore
+    avoid_catches_without_on_clauses: ignore
+    dangling_library_doc_comments: ignore
+
+linter:
+  rules:
+    public_member_api_docs: false
+    sort_pub_dependencies: false
+    curly_braces_in_flow_control_structures: true

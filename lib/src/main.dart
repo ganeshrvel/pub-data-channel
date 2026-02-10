@@ -1,57 +1,43 @@
-import 'package:meta/meta.dart';
-
+/// Data Channel for Dart and Flutter.
 ///
-/// data_channel class
-class DC<Error, Data> {
-  Error error;
-  Data data;
+/// DC is a simple utility for handling exceptions and data routing.
+class DC<Err, Data> {
+  /// Returns just error.
+  factory DC.error(Err error) => DC._(error: error);
 
-  DC({
-    @required this.error,
-    @required this.data,
-  });
+  const DC._({this.error, this.data});
 
-  // checks whether an error is present
-  bool get hasError => error != null;
+  /// Returns just data.
+  factory DC.data(Data? data) => DC._(data: data);
 
-  // checks whether data is available
-  bool get hasData => data != null;
-
-  // returns just error
-  factory DC.error(Error error) {
-    return DC(
-      error: error,
-      data: null,
-    );
-  }
-
-  // returns just data
-  factory DC.data(Data data) {
-    return DC(
-      error: null,
-      data: data,
-    );
-  }
-
-  // forwards error or data
-  factory DC.forward(DC _dc, Data data) {
-    if (_dc.hasError) {
-      return DC.error(_dc.error as Error);
+  /// Forwards error or data.
+  factory DC.forward(DC<Err, dynamic> dc, Data? data) {
+    if (dc.hasError) {
+      return DC.error(dc.error as Err);
     }
 
     return DC.data(data);
   }
 
-  // pick onError, onNoError, onData or onNoData
+  final Err? error;
+  final Data? data;
+
+  /// Checks whether an error is present.
+  bool get hasError => error != null;
+
+  /// Checks whether data is available.
+  bool get hasData => data != null;
+
+  /// Pick handler based on result state.
   void pick({
-    Function(Error error) onError,
-    Function(Data data) onNoError,
-    Function(Data data) onData,
-    Function() onNoData,
+    void Function(Err error)? onError,
+    void Function(Data? data)? onNoError,
+    void Function(Data data)? onData,
+    void Function()? onNoData,
   }) {
     if (hasError) {
       if (onError != null) {
-        onError(error);
+        onError(error as Err);
       }
 
       return;
@@ -65,7 +51,7 @@ class DC<Error, Data> {
 
     if (hasData) {
       if (onData != null) {
-        onData(data);
+        onData(data as Data);
       }
 
       return;
@@ -76,5 +62,35 @@ class DC<Error, Data> {
 
       return;
     }
+  }
+
+  /// Fold pattern - handle both cases with a simple function call.
+  T fold<T>({
+    required T Function(Err error) onError,
+    required T Function(Data? data) onData,
+  }) {
+    if (hasError) {
+      return onError(error as Err);
+    }
+    return onData(data);
+  }
+
+  /// Map the data value if present, preserve error otherwise.
+  DC<Err, NewData> mapData<NewData>(NewData Function(Data data) transform) {
+    if (hasError) {
+      return DC.error(error as Err);
+    }
+    return DC.data(transform(data as Data));
+  }
+
+  /// Map the error value if present, preserve data otherwise.
+  DC<NewError, Data> mapError<NewError>(
+    NewError Function(Err error) transform,
+  ) {
+    if (hasError) {
+      return DC.error(transform(error as Err));
+    }
+
+    return DC.data(data);
   }
 }
