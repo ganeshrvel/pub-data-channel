@@ -139,6 +139,100 @@ final uppercaseColor = theme
     .mapData((name) => name.toUpperCase());
 ```
 
+---
+
+#### Example: HTTP API with DC
+
+Return data or error from an API call without leaking try catch everywhere.
+
+```dart
+import 'dart:convert';
+import 'package:data_channel/data_channel.dart';
+import 'package:http/http.dart' as http;
+
+Future<DC<Exception, StarwarsResponse>> getStarwarsCharacters() async {
+  try {
+    final response =
+        await http.get(Uri.parse('https://starwars-api.com/characters'));
+
+    if (response.body.isEmpty) {
+      return DC.error(Exception('No data available'));
+    }
+
+    final data = StarwarsResponse.fromJson(
+      json.decode(response.body) as Map<String, dynamic>,
+    );
+
+    return DC.data(data);
+  } on Exception catch (e) {
+    return DC.error(e);
+  }
+}
+```
+
+### Example: Consuming the result
+
+```dart
+void loadCharacters() async {
+  final result = await getStarwarsCharacters();
+
+  if (result.hasError) {
+    // handle error
+  } else if (result.hasData) {
+    // use data
+  }
+}
+```
+
+### Example: DC.forward with API data
+
+Forward errors automatically while mapping to a new model.
+
+```dart
+Future<DC<Exception, UserModel>> loadUser() async {
+  final starWarsData = await getStarwarsCharacters();
+
+  return DC.forward(
+    starWarsData,
+    UserModel(id: starWarsData.data?.id),
+  );
+}
+```
+
+### Example: DC.pick for UI logic
+
+```dart
+final appData = await getStarwarsCharacters();
+
+appData.pick(
+  onError: (error) {
+    alerts.setException(context, error);
+  },
+  onData: (data) {
+    value1 = data;
+  },
+  onNoData: () {
+    value1 = getDefaultValue();
+  },
+);
+
+// alternative
+appData.pick(
+  onError: (error) {
+    alerts.setException(context, error);
+  },
+  onNoError: (data) {
+    if (data != null) {
+      value1 = data;
+      return;
+    }
+    value1 = getDefaultValue();
+  },
+);
+```
+
+---
+
 ### Buy me a coffee
 
 Help keep this package free and open for everyone.  

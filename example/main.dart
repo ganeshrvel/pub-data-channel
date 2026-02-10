@@ -7,6 +7,9 @@
 /// https://github.com/ganeshrvel/flutter_mobx_dio_boilerplate/blob/master/lib/features/login/data/repositories/login_repository.dart
 /// https://github.com/ganeshrvel/flutter_mobx_dio_boilerplate/blob/master/lib/features/login/ui/store/login_store.dart
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:data_channel/data_channel.dart';
 
 // Mock classes for examples
@@ -251,4 +254,91 @@ void realWorldScenarioExample() {
 
 DC<NetworkException, User> simulateApiCall(String id) {
   return DC<NetworkException, User>.data(User(id, 'Frank'));
+}
+
+/* ================= Starwars HTTP Example ================= */
+
+class StarwarsResponse {
+  StarwarsResponse({
+    required this.character,
+    required this.age,
+  });
+
+  factory StarwarsResponse.fromJson(Map<String, dynamic> json) {
+    return StarwarsResponse(
+      character: json['character'] as String,
+      age: json['age'] as int,
+    );
+  }
+
+  final String character;
+  final int age;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'character': character,
+      'age': age,
+    };
+  }
+
+  @override
+  String toString() => 'StarwarsResponse(character: $character, age: $age)';
+}
+
+class StarwarsDataSource {
+  Future<DC<Exception, StarwarsResponse>> getStarwarsCharacters() async {
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse('https://starwars-api.com/characters');
+
+      final request = await client.getUrl(uri);
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode != 200) {
+        return DC.error(Exception('No data available'));
+      }
+
+      final data = StarwarsResponse.fromJson(
+        json.decode(body) as Map<String, dynamic>,
+      );
+
+      return DC.data(data);
+    } on Exception catch (e) {
+      return DC.error(e);
+    }
+  }
+}
+
+class StarwarsDataController {
+  final _dataSource = StarwarsDataSource();
+
+  Future<DC<Exception, StarwarsResponse>> getStarwarsCharacters() async {
+    final result = await _dataSource.getStarwarsCharacters();
+
+    if (result.hasError) {
+      return DC.error(result.error!);
+    }
+
+    return DC.data(result.data);
+  }
+}
+
+Future<void> starwarsExample() async {
+  print('=== Starwars HTTP Example ===');
+
+  final controller = StarwarsDataController();
+  final result = await controller.getStarwarsCharacters();
+
+  result.pick(
+    onError: (error) {
+      print('Starwars error: $error');
+    },
+    onData: (data) {
+      print('Starwars data: $data');
+    },
+    onNoData: () {
+      print('Starwars no data');
+    },
+  );
 }
