@@ -134,7 +134,7 @@ sealed class DC<Err, Data> {
     );
   }
 
-  /// Forwards error if present, otherwise transforms data using Option methods.
+  /// Forwards error if present, otherwise lazily calls builder to produce a new Option.
   ///
   /// ```dart
   /// // Return Some directly

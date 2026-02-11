@@ -66,9 +66,7 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 - **`DC.forwardErrorOr(dc, newData)`** - Forward error if present, otherwise create new DCData with
   provided data
 - **`DC.forwardErrorOrNull(dc)`** - Forward error if present, otherwise create DCData with None
-- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise transform data
-  using
-  Option methods
+- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise lazily transform data and return an Option
 
 ### Option API
 
