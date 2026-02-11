@@ -1,3 +1,13 @@
+## 4.1.0
+
+- Breaking: Renamed constructors for clarity
+    - `DC.data()` → `DC.some()` (explicitly wraps in Some)
+    - `DC.nullData()` → `DC.none()` (explicitly creates None)
+- Breaking: Renamed factory methods
+    - `Option.from()` → `Option.auto()` (auto-detects null)
+- New: `DC.auto(nullableData)` - automatically creates Some or None based on null check
+- New: `DC.fromOption(option)` - lifts existing Option into DC without double-wrapping
+
 ## 4.0.0+3
 
 - Downgrade meta to 1.17.0 for Flutter test compatibility

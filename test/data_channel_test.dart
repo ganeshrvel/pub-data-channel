@@ -90,31 +90,126 @@ void main() {
       expect(dc.hasOptionalData, false);
     });
 
-    test('DC.data creates DCData with Some value', () {
+    test('DC.some creates DCData with Some value', () {
       const user = User('1', 'Alice');
-      final dc = DC<NetworkError, User>.data(user);
+      final dc = DC<NetworkError, User>.some(user);
 
       expect(dc, isA<DCData<NetworkError, User>>());
       expect(dc.hasError, false);
       expect(dc.hasOptionalData, true);
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isSome, true);
+          expect(opt.tryMaybe(), user);
+        },
+      );
     });
 
-    test('DC.nullData creates DCData with None', () {
-      final dc = DC<NetworkError, User>.nullData();
+    test('DC.some wraps null in Some when Data is nullable', () {
+      final dc = DC<NetworkError, String?>.some(null);
+
+      expect(dc, isA<DCData<NetworkError, String?>>());
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isSome, true);
+          expect(opt.tryMaybe(), null);
+        },
+      );
+    });
+
+    test('DC.none creates DCData with None', () {
+      final dc = DC<NetworkError, User>.none();
 
       expect(dc, isA<DCData<NetworkError, User>>());
       expect(dc.hasError, false);
       expect(dc.hasOptionalData, true);
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) => expect(opt.isNone, true),
+      );
+    });
+
+    test('DC.auto with non-null creates DCData with Some', () {
+      const user = User('1', 'Alice');
+      final dc = DC<NetworkError, User>.auto(user);
+
+      expect(dc, isA<DCData<NetworkError, User>>());
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isSome, true);
+          expect(opt.tryMaybe(), user);
+        },
+      );
+    });
+
+    test('DC.auto with null creates DCData with None', () {
+      final dc = DC<NetworkError, User>.auto(null);
+
+      expect(dc, isA<DCData<NetworkError, User>>());
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) => expect(opt.isNone, true),
+      );
+    });
+
+    test('DC.fromOption with Some creates DCData with Some', () {
+      const user = User('1', 'Alice');
+      const option = Some(user);
+      final dc = DC<NetworkError, User>.fromOption(option);
+
+      expect(dc, isA<DCData<NetworkError, User>>());
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isSome, true);
+          expect(opt.tryMaybe(), user);
+        },
+      );
+    });
+
+    test('DC.fromOption with None creates DCData with None', () {
+      const option = None<User>();
+      final dc = DC<NetworkError, User>.fromOption(option);
+
+      expect(dc, isA<DCData<NetworkError, User>>());
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) => expect(opt.isNone, true),
+      );
+    });
+
+    test('DC.fromOption does not double-wrap Option', () {
+      const user = User('1', 'Alice');
+      const option = Some(user);
+      final dc = DC<NetworkError, User>.fromOption(option);
+
+      // Verify it's DC<NetworkError, User>, not DC<NetworkError, Option<User>>
+      expect(dc, isA<DC<NetworkError, User>>());
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt, isA<Option<User>>());
+          expect(opt, isNot(isA<Option<Option<User>>>()));
+        },
+      );
     });
 
     test('Type parameters are preserved correctly', () {
       final error = DC<NetworkError, User>.error(const NetworkError('Failed'));
-      final data = DC<NetworkError, User>.data(const User('1', 'Alice'));
-      final nullData = DC<NetworkError, User>.nullData();
+      final some = DC<NetworkError, User>.some(const User('1', 'Alice'));
+      final none = DC<NetworkError, User>.none();
+      final auto = DC<NetworkError, User>.auto(const User('2', 'Bob'));
+      final fromOption =
+          DC<NetworkError, User>.fromOption(const Some(User('3', 'Charlie')));
 
       expect(error, isA<DC<NetworkError, User>>());
-      expect(data, isA<DC<NetworkError, User>>());
-      expect(nullData, isA<DC<NetworkError, User>>());
+      expect(some, isA<DC<NetworkError, User>>());
+      expect(none, isA<DC<NetworkError, User>>());
+      expect(auto, isA<DC<NetworkError, User>>());
+      expect(fromOption, isA<DC<NetworkError, User>>());
     });
   });
 
@@ -126,15 +221,35 @@ void main() {
     });
 
     test('DCData.hasError returns false (with Some)', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       expect(dc.hasError, false);
     });
 
     test('DCData.hasError returns false (with None)', () {
-      final dc = DC<NetworkError, User>.nullData();
+      final dc = DC<NetworkError, User>.none();
 
       expect(dc.hasError, false);
+    });
+  });
+
+  group('DC State Checks - hasOptionalData', () {
+    test('DCError.hasOptionalData returns false', () {
+      final dc = DC<NetworkError, User>.error(const NetworkError('Failed'));
+
+      expect(dc.hasOptionalData, false);
+    });
+
+    test('DCData.hasOptionalData returns true (with Some)', () {
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
+
+      expect(dc.hasOptionalData, true);
+    });
+
+    test('DCData.hasOptionalData returns true (with None)', () {
+      final dc = DC<NetworkError, User>.none();
+
+      expect(dc.hasOptionalData, true);
     });
   });
 
@@ -151,7 +266,7 @@ void main() {
     });
 
     test('DCData with Some calls onData with Some', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = dc.fold(
         onError: (e) => 'Error',
@@ -165,7 +280,7 @@ void main() {
     });
 
     test('DCData with None calls onData with None', () {
-      final dc = DC<NetworkError, User>.nullData();
+      final dc = DC<NetworkError, User>.none();
 
       final result = dc.fold(
         onError: (e) => 'Error',
@@ -181,7 +296,7 @@ void main() {
 
   group('DC fold - Type Transformation', () {
     test('fold can return different type (String → int)', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = dc.fold(
         onError: (e) => -1,
@@ -196,7 +311,7 @@ void main() {
     });
 
     test('fold can return bool for validation', () {
-      final success = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final success = DC<NetworkError, User>.some(const User('1', 'Alice'));
       final failure =
           DC<NetworkError, User>.error(const NetworkError('Failed'));
 
@@ -228,7 +343,7 @@ void main() {
     });
 
     test('DCData does NOT call onError', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
       var onErrorCalled = false;
 
       dc.fold(
@@ -245,7 +360,7 @@ void main() {
 
   group('DC fold - Accessing Inner Option', () {
     test('onData receives Option and can use Option methods', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = dc.fold(
         onError: (e) => 'Error',
@@ -259,7 +374,7 @@ void main() {
     });
 
     test('onData can filter and handle None result', () {
-      final dc = DC<NetworkError, User>.data(
+      final dc = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: false),
       );
 
@@ -304,7 +419,7 @@ void main() {
 
   group('DC.forwardErrorOr - Success Transformation', () {
     test('DCData discards old data, creates new DCData with new value', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
       const profile = Profile('1', 'Software Developer');
 
       final result = DC.forwardErrorOr(userResult, profile);
@@ -321,7 +436,7 @@ void main() {
     });
 
     test('DCData.none() forwards to new DCData with Some', () {
-      final userResult = DC<NetworkError, User>.nullData();
+      final userResult = DC<NetworkError, User>.none();
       const profile = Profile('1', 'Bio');
 
       final result = DC.forwardErrorOr(userResult, profile);
@@ -339,7 +454,7 @@ void main() {
 
   group('DC.forwardErrorOr - Type Changes', () {
     test('forward changes Data type (User → Profile)', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
       const profile = Profile('1', 'Bio');
 
       final result =
@@ -353,7 +468,7 @@ void main() {
     });
 
     test('forward changes Data type (User → String)', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOr(userResult, 'Success message');
 
@@ -367,7 +482,7 @@ void main() {
 
   group('DC.forwardErrorOr - Chaining', () {
     test('chain multiple forward calls', () {
-      final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final step1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
       final step2 = DC.forwardErrorOr(step1, const Profile('1', 'Bio'));
       final step3 = DC.forwardErrorOr(step2, 'Final result');
 
@@ -410,7 +525,7 @@ void main() {
 
   group('DC.forwardErrorOrNull - Success to Null', () {
     test('DCData with Some becomes DCData with None', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result =
           DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
@@ -426,7 +541,7 @@ void main() {
     });
 
     test('DCData with None stays DCData with None', () {
-      final userResult = DC<NetworkError, User>.nullData();
+      final userResult = DC<NetworkError, User>.none();
 
       final result =
           DC.forwardErrorOrNull<NetworkError, User, Profile>(userResult);
@@ -441,7 +556,7 @@ void main() {
 
   group('DC.forwardErrorOrNull - Type Changes', () {
     test('forwardErrorOrNull changes Data type parameter', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result =
           DC.forwardErrorOrNull<NetworkError, User, String>(userResult);
@@ -472,7 +587,7 @@ void main() {
 
   group('DC.forwardErrorOrElse - Return Some Directly', () {
     test('builder returns Some(value)', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(
         userResult,
@@ -490,7 +605,7 @@ void main() {
     });
 
     test('builder ignores input and returns fixed Some', () {
-      final userResult = DC<NetworkError, User>.nullData();
+      final userResult = DC<NetworkError, User>.none();
 
       DC
           .forwardErrorOrElse(
@@ -506,7 +621,7 @@ void main() {
 
   group('DC.forwardErrorOrElse - Return None Directly', () {
     test('builder returns None explicitly', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse<NetworkError, User, Profile>(
         userResult,
@@ -526,7 +641,7 @@ void main() {
 
   group('DC.forwardErrorOrElse - Transform with map', () {
     test('builder uses option.map() to transform', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       DC
           .forwardErrorOrElse(
@@ -544,7 +659,7 @@ void main() {
     });
 
     test('builder map on None stays None', () {
-      final userResult = DC<NetworkError, User>.nullData();
+      final userResult = DC<NetworkError, User>.none();
 
       DC
           .forwardErrorOrElse(
@@ -560,7 +675,7 @@ void main() {
 
   group('DC.forwardErrorOrElse - Filter with Validation', () {
     test('builder uses filter, passes validation', () {
-      final userResult = DC<NetworkError, User>.data(
+      final userResult = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: true),
       );
 
@@ -581,7 +696,7 @@ void main() {
     });
 
     test('builder uses filter, fails validation', () {
-      final userResult = DC<NetworkError, User>.data(
+      final userResult = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: false),
       );
 
@@ -601,7 +716,7 @@ void main() {
 
   group('DC.forwardErrorOrElse - Fallback Chaining', () {
     test('builder uses map with orElse fallback (Some case)', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(
         userResult,
@@ -615,7 +730,7 @@ void main() {
     });
 
     test('builder uses map with orElse fallback (None case)', () {
-      final userResult = DC<NetworkError, User>.nullData();
+      final userResult = DC<NetworkError, User>.none();
 
       final result = DC.forwardErrorOrElse(
         userResult,
@@ -631,7 +746,7 @@ void main() {
 
   group('DC.forwardErrorOrElse - Type Transformations', () {
     test('User → Profile transformation', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(
         userResult,
@@ -642,7 +757,7 @@ void main() {
     });
 
     test('User → String transformation', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(
         userResult,
@@ -653,7 +768,7 @@ void main() {
     });
 
     test('User → int transformation', () {
-      final userResult = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final userResult = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(
         userResult,
@@ -700,7 +815,7 @@ void main() {
 
   group('DC.mapError - DCData Unchanged', () {
     test('DCData with Some - mapError preserves data', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = dc.mapError((e) => ValidationError(e.message));
 
@@ -716,7 +831,7 @@ void main() {
     });
 
     test('DCData with None - mapError preserves None', () {
-      final dc = DC<NetworkError, User>.nullData();
+      final dc = DC<NetworkError, User>.none();
 
       final result = dc.mapError((e) => ValidationError(e.message));
 
@@ -728,7 +843,7 @@ void main() {
     });
 
     test('DCData - mapError transform NOT called', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
       var transformCalled = false;
 
       dc.mapError((e) {
@@ -826,7 +941,7 @@ void main() {
 
   group('Complex Workflows - Success Path End-to-End', () {
     test('data → forward → forwardErrorOrElse → fold (transforms data)', () {
-      final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final step1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
       final step2 =
           DC.forwardErrorOr(step1, const Profile('1', 'Software Developer'));
       final step3 = DC.forwardErrorOrElse(
@@ -843,7 +958,7 @@ void main() {
     });
 
     test('data → forwardErrorOrElse with map → forward → fold', () {
-      final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final step1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
       final step2 = DC.forwardErrorOrElse(
         step1,
         (userOpt) => userOpt.map((u) => Profile(u.id, u.name)),
@@ -862,7 +977,7 @@ void main() {
   group('Complex Workflows - Mixed Scenarios', () {
     test('forwardErrorOrElse filter fails, then forward continues with None',
         () {
-      final step1 = DC<NetworkError, User>.data(
+      final step1 = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: false),
       );
       final step2 = DC.forwardErrorOrElse(
@@ -881,8 +996,8 @@ void main() {
       expect(result, 'Completed');
     });
 
-    test('nullData → forwardErrorOrElse with fallback → fold', () {
-      final step1 = DC<NetworkError, User>.nullData();
+    test('none → forwardErrorOrElse with fallback → fold', () {
+      final step1 = DC<NetworkError, User>.none();
       final step2 = DC.forwardErrorOrElse(
         step1,
         (userOpt) => Some(
@@ -902,7 +1017,7 @@ void main() {
   group('Complex Workflows - Real-world Simulation', () {
     test('fetchUser → validateUser → createProfile flow (success)', () {
       // Simulate API response
-      final fetchResult = DC<NetworkError, User>.data(
+      final fetchResult = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: true),
       );
 
@@ -931,7 +1046,7 @@ void main() {
 
     test('fetchUser → validateUser → createProfile flow (validation fails)',
         () {
-      final fetchResult = DC<NetworkError, User>.data(
+      final fetchResult = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: false),
       );
 
@@ -1016,7 +1131,7 @@ void main() {
     });
 
     test('success executes all builders until filter fails', () {
-      final step1 = DC<NetworkError, User>.data(
+      final step1 = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: true),
       );
       var builder1Called = false;
@@ -1044,7 +1159,7 @@ void main() {
 
   group('Edge Cases - Nullable Data', () {
     test('DCData with Some(null) when Data type is nullable', () {
-      final dc = DC<NetworkError, String?>.data(null);
+      final dc = DC<NetworkError, String?>.some(null);
 
       expect(dc.hasOptionalData, true);
       dc.fold(
@@ -1057,7 +1172,7 @@ void main() {
     });
 
     test('Operations on DCData with Some(null)', () {
-      final dc = DC<NetworkError, int?>.data(null);
+      final dc = DC<NetworkError, int?>.some(null);
 
       final result = DC.forwardErrorOrElse(
         dc,
@@ -1073,7 +1188,7 @@ void main() {
 
   group('Edge Cases - Same Type Forward', () {
     test('forward with same User type', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
       const newUser = User('2', 'Bob');
 
       final result = DC.forwardErrorOr(dc, newUser);
@@ -1098,7 +1213,7 @@ void main() {
     });
 
     test('forwardErrorOrElse with identity transform', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(dc, (opt) => opt);
 
@@ -1111,7 +1226,7 @@ void main() {
 
   group('Edge Cases - Empty Transformations', () {
     test('forwardErrorOrElse that always returns None', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse<NetworkError, User, String>(
         dc,
@@ -1125,7 +1240,7 @@ void main() {
     });
 
     test('forwardErrorOrElse with filter that always fails', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = DC.forwardErrorOrElse(
         dc,
@@ -1157,29 +1272,29 @@ void main() {
 
     test('DCData equality - same Some values equal', () {
       const user = User('1', 'Alice');
-      final dc1 = DC<NetworkError, User>.data(user);
-      final dc2 = DC<NetworkError, User>.data(user);
+      final dc1 = DC<NetworkError, User>.some(user);
+      final dc2 = DC<NetworkError, User>.some(user);
 
       expect(dc1, equals(dc2));
     });
 
     test('DCData equality - different Some values not equal', () {
-      final dc1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
-      final dc2 = DC<NetworkError, User>.data(const User('2', 'Bob'));
+      final dc1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
+      final dc2 = DC<NetworkError, User>.some(const User('2', 'Bob'));
 
       expect(dc1 == dc2, false);
     });
 
     test('DCData equality - two None values equal', () {
-      final dc1 = DC<NetworkError, User>.nullData();
-      final dc2 = DC<NetworkError, User>.nullData();
+      final dc1 = DC<NetworkError, User>.none();
+      final dc2 = DC<NetworkError, User>.none();
 
       expect(dc1, equals(dc2));
     });
 
     test('DCError and DCData not equal', () {
       final error = DC<NetworkError, User>.error(const NetworkError('Failed'));
-      final data = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final data = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       expect(error == data, false);
     });
@@ -1194,14 +1309,14 @@ void main() {
     });
 
     test('DCData with Some displays data', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       expect(dc.toString(), contains('DCData'));
       expect(dc.toString(), contains('Some'));
     });
 
     test('DCData with None displays correctly', () {
-      final dc = DC<NetworkError, User>.nullData();
+      final dc = DC<NetworkError, User>.none();
 
       expect(dc.toString(), 'DCData(None)');
     });
@@ -1209,7 +1324,7 @@ void main() {
 
   group('Type Safety Verification', () {
     test('fold ensures exhaustive handling', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       // This compiles, proving both branches are required
       final result = dc.fold(
@@ -1221,7 +1336,7 @@ void main() {
     });
 
     test('Generic type preservation through operations', () {
-      final dc1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       expect(dc1, isA<DC<NetworkError, User>>());
 
@@ -1233,7 +1348,7 @@ void main() {
     });
 
     test('Static method type inference works correctly', () {
-      final step1 = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final step1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       // Type inference should work without explicit type parameters
       final step2 = DC.forwardErrorOr(step1, 'Success');
@@ -1246,7 +1361,7 @@ void main() {
 
   group('Integration with Option', () {
     test('DCData contains Option - verify Option methods work', () {
-      DC<NetworkError, User>.data(const User('1', 'Alice')).fold(
+      DC<NetworkError, User>.some(const User('1', 'Alice')).fold(
         onError: (_) => fail('Should not have error'),
         onData: (opt) {
           final mapped = opt.map((u) => u.name);
@@ -1262,7 +1377,7 @@ void main() {
     });
 
     test('Nested transformations - DC fold → Option fold chains', () {
-      final dc = DC<NetworkError, User>.data(const User('1', 'Alice'));
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
 
       final result = dc.fold(
         onError: (e) => 'Error: ${e.message}',
@@ -1278,7 +1393,7 @@ void main() {
     test(
         'Option operations in forwardErrorOrElse - chaining map, filter, orElse',
         () {
-      final dc = DC<NetworkError, User>.data(
+      final dc = DC<NetworkError, User>.some(
         const User('1', 'Alice', isVerified: true),
       );
 
@@ -1300,7 +1415,7 @@ void main() {
 
     test('forwardErrorOrElse with complex Option chain', () {
       final dc =
-          DC<NetworkError, User>.data(const User('1', 'A', isVerified: false));
+          DC<NetworkError, User>.some(const User('1', 'A', isVerified: false));
 
       DC
           .forwardErrorOrElse(

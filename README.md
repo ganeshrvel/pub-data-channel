@@ -6,11 +6,19 @@
 Dart applications. Rather than cluttering your code with try-catch blocks and null checks,
 `data_channel` provides a clean, composable way to handle errors, data, and optional values.
 
+**An Opinionated Alternative to Result and Option Types:**
+
+`data_channel` is an opinionated alternative to traditional `Result`/`Either` and `Option`/`Maybe`
+patterns found in functional programming. Unlike standalone implementations, DC tightly couples
+error handling with optional data through its integrated `Option` type, providing maximum
+convenience and compile-time type safety.
+
 **Core Concepts:**
 
 - **DC (Data Channel)** - Represents either an error or optional data (similar to Result/Either
   types)
 - **Option** - Represents presence (Some) or absence (None) of a value (eliminates nullable types)
+- **Tight Coupling** - DC always wraps data in `Option<Data>`, enforcing explicit null handling
 - **Type Safety** - Explicit error and data types in your function signatures
 - **Composability** - Chain operations without repetitive error/null checking
 
@@ -40,8 +48,10 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 #### Constructors
 
 - **`DC.error(error)`** - Creates a DC containing an error
-- **`DC.data(data)`** - Creates a DC containing data (as Some)
-- **`DC.nullData()`** - Creates a DC with no data (as None)
+- **`DC.auto(nullableData)`** - Automatically creates Some if non-null, None if null
+- **`DC.some(data)`** - Creates a DC with data wrapped in Some (even if null for nullable types)
+- **`DC.none()`** - Creates a DC with no data (None)
+- **`DC.fromOption(option)`** - Creates a DC from an existing Option without double-wrapping
 
 #### Instance Methods
 
@@ -56,7 +66,8 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 - **`DC.forwardErrorOr(dc, newData)`** - Forward error if present, otherwise create new DCData with
   provided data
 - **`DC.forwardErrorOrNull(dc)`** - Forward error if present, otherwise create DCData with None
-- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise transform data using
+- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise transform data
+  using
   Option methods
 
 ### Option API
@@ -67,7 +78,7 @@ The `Option<T>` type represents optional values and is used within `DCData` to h
 
 - **`Some(value)`** - Creates an Option containing a value
 - **`None()`** - Creates an empty Option
-- **`Option.from(nullable)`** - Creates Some if non-null, None otherwise
+- **`Option.auto(nullable)`** - Automatically creates Some if non-null, None otherwise
 
 #### Instance Methods
 
@@ -93,6 +104,46 @@ The `Option<T>` type represents optional values and is used within `DCData` to h
 
 ### Basic Usage
 
+Automatically wraps nullable values in the appropriate Option variant. Use this to eliminate manual null checks when working with nullable data:
+
+```dart
+Future<DC<Exception, User>> getUserById(String id) async {
+  try {
+    final User? user = await database.findUser(id); // might be null
+    
+    // Automatically creates Some(user) or None() based on null check
+    return DC<Exception, User>.auto(user);
+    
+    // Instead of manual:
+    // return user != null ? DC.some(user) : DC.none();
+  } on Exception catch (e) {
+    return DC.error(e);
+  }
+}
+```
+
+Creates a DC from an existing Option WITHOUT double-wrapping. Use this when you already have an Option from another operation and want to lift it into a DC:
+
+```dart
+Future<DC<Exception, Profile>> getProfileFromCache() async {
+  try {
+    // Cache returns Option<Profile>
+    final Option<Profile> cachedProfile = cache.get('profile');
+    
+    // Lift Option directly into DC WITHOUT creating Option<Option<Profile>>
+    return DC<Exception, Profile>.fromOption(cachedProfile);
+    
+    // Instead of manual:
+    // return cachedProfile.fold(
+    //   onSome: (p) => DC.some(p),
+    //   onNone: () => DC.none(),
+    // );
+  } on Exception catch (e) {
+    return DC.error(e);
+  }
+}
+```
+
 Return either error or data from any method:
 
 ```dart
@@ -100,7 +151,7 @@ import 'package:data_channel/data_channel.dart';
 
 Future<DC<Exception, LoginModel>> getSomeLoginData() async {
   try {
-    return DC<Exception, LoginModel>.data(someData);
+    return DC<Exception, LoginModel>.some(someData);
   } on Exception catch (e) {
     return DC<Exception, LoginModel>.error(e);
   }
@@ -252,7 +303,7 @@ void main() {
   result.fold(
     onError: (e) => print('Error: $e'),
     onData: (userOption) {
-      // userOption is Option
+      // userOption is Option<User>
 
       // Check if data exists
       if (userOption.isSome) {
@@ -295,14 +346,14 @@ Future<DC<Exception, StarwarsResponse>> getStarwarsCharacters() async {
     }
 
     if (response.body.isEmpty) {
-      return DC.nullData(); // Success but no data
+      return DC.none(); // Success but no data
     }
 
     final data = StarwarsResponse.fromJson(
       json.decode(response.body) as Map<String, dynamic>,
     );
 
-    return DC.data(data);
+    return DC.some(data);
   } on Exception catch (e) {
     return DC.error(e);
   }
@@ -334,7 +385,7 @@ Build complex workflows by chaining DC operations:
 
 ```dart
 void main() {
-  Future<DC> loadUserProfile(String userId) async {
+  Future<DC<Exception, ProfileView>> loadUserProfile(String userId) async {
     // Step 1: Fetch user
     final userResult = await fetchUser(userId);
 
@@ -418,7 +469,7 @@ import 'package:data_channel/data_channel.dart';
 // Create Options
 final some = Some(42);
 final none = None<int>();
-final fromNullable = Option.from(possiblyNullValue);
+final fromNullable = Option.auto(possiblyNullValue);
 
 // Transform values
 final doubled = some.map((x) => x * 2); // Some(84)
@@ -433,7 +484,7 @@ final evenOnly = some.filter((x) => x.isEven); // Some(42)
 final oddOnly = some.filter((x) => x.isOdd); // None()
 
 // Chain operations
-final result = Option.from(user)
+final result = Option.auto(user)
     .filter((u) => u.isActive)
     .map((u) => u.email)
     .map((e) => e.toLowerCase())

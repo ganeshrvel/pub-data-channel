@@ -62,10 +62,8 @@ class UserFacingException implements Exception {
 }
 
 void main() {
-  print('For more examples, see:');
-  print('  test/data_channel_test.dart');
-  print('  test/option_test.dart\n');
-
+  dcAutoExample();
+  dcFromOptionExample();
   basicDCUsageExample();
   optionBasicsExample();
   dcFoldExample();
@@ -78,9 +76,113 @@ void main() {
   workflowExample();
 }
 
+void dcAutoExample() {
+  // Simulating nullable data from database/API
+  // ignore: unnecessary_nullable_for_final_variable_declarations
+  const String? nullableUser = 'Alice';
+  const String? nullValue = null;
+
+  // DC.auto handles null check automatically
+  final userResult = DC<NetworkException, String>.auto(nullableUser);
+  final nullResult = DC<NetworkException, String>.auto(nullValue);
+
+  print('With non-null value:');
+  userResult.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (opt) => opt.fold(
+      onSome: (user) => print('  User: $user'),
+      onNone: () => print('  No user'),
+    ),
+  );
+  // Expected:
+  //   User: Alice
+
+  print('With null value:');
+  nullResult.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (opt) => opt.fold(
+      onSome: (user) => print('  User: $user'),
+      onNone: () => print('  No user'),
+    ),
+  );
+  // Expected:
+  //   No user
+
+  // Practical example: database lookup
+  final dbResult = simulateDatabaseLookup('123');
+  print('Database lookup:');
+  dbResult.fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (opt) => opt.fold(
+      onSome: (user) => print('  Found: ${user.name}'),
+      onNone: () => print('  User not found'),
+    ),
+  );
+  // Expected:
+  //   Found: DatabaseUser
+}
+
+void dcFromOptionExample() {
+  // Simulating Option returned from cache/computation
+  final cachedProfile = getCachedProfile('user-123');
+
+  // Lift Option directly into DC without double-wrapping
+  final result = DC<NetworkException, Profile>.fromOption(cachedProfile);
+
+  print('Cache lookup result:');
+  result.fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (opt) => opt.fold(
+      onSome: (profile) => print('  Cached: ${profile.bio}'),
+      onNone: () => print('  Cache miss'),
+    ),
+  );
+  // Expected:
+  //   Cached: Cached profile bio
+
+  // Example: combining Option-returning functions with DC
+  final processedResult = processOptionData();
+  print('Processed Option:');
+  processedResult.fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (opt) => opt.fold(
+      onSome: (data) => print('  Processed: $data'),
+      onNone: () => print('  No data to process'),
+    ),
+  );
+  // Expected:
+  //   Processed: PROCESSED_VALUE
+}
+
+// Helper functions for examples
+DC<NetworkException, User> simulateDatabaseLookup(String id) {
+  // Simulate nullable database result
+  // ignore: unnecessary_nullable_for_final_variable_declarations
+  final User? dbUser = User(id, 'DatabaseUser');
+
+  // Auto-handle nullable result
+  return DC<NetworkException, User>.auto(dbUser);
+}
+
+Option<Profile> getCachedProfile(String userId) {
+  // Simulate cache returning Option
+  return Some(Profile(userId, 'Cached profile bio'));
+}
+
+DC<NetworkException, String> processOptionData() {
+  // Simulate function that returns Option
+  // ignore: omit_local_variable_types
+  final Option<String> optionData = Option.auto('processed_value');
+
+  // Process Option and lift into DC
+  final transformed = optionData.map((s) => s.toUpperCase());
+
+  return DC<NetworkException, String>.fromOption(transformed);
+}
+
 void basicDCUsageExample() {
   // Success with data
-  final successResult = DC<NetworkException, User>.data(
+  final successResult = DC<NetworkException, User>.some(
     User('123', 'Alice'),
   );
 
@@ -104,7 +206,7 @@ void basicDCUsageExample() {
   //   hasOptionalData: false
 
   // Success with no data
-  final nullDataResult = DC<NetworkException, User>.nullData();
+  final nullDataResult = DC<NetworkException, User>.none();
   print('Null data case:');
   print('  hasError: ${nullDataResult.hasError}');
   print('  hasOptionalData: ${nullDataResult.hasOptionalData}\n');
@@ -117,7 +219,7 @@ void optionBasicsExample() {
   // Creating Options
   const some = Some(42);
   const none = None<int>();
-  final fromNullable = Option.from(null);
+  final fromNullable = Option.auto(null);
 
   print('Some(42).isSome: ${some.isSome}');
   // Expected: Some(42).isSome: true
@@ -125,8 +227,8 @@ void optionBasicsExample() {
   print('None().isNone: ${none.isNone}');
   // Expected: None().isNone: true
 
-  print('Option.from(null).isNone: ${fromNullable.isNone}');
-  // Expected: Option.from(null).isNone: true
+  print('Option.auto(null).isNone: ${fromNullable.isNone}');
+  // Expected: Option.auto(null).isNone: true
 
   // Using Option methods
   final doubled = some.map((x) => x * 2);
@@ -144,7 +246,7 @@ void optionBasicsExample() {
 }
 
 void dcFoldExample() {
-  final successResult = DC<NetworkException, User>.data(
+  final successResult = DC<NetworkException, User>.some(
     User('789', 'Bob'),
   );
 
@@ -173,7 +275,7 @@ void dcFoldExample() {
 }
 
 void dcForwardErrorOrExample() {
-  final userResult = DC<NetworkException, User>.data(
+  final userResult = DC<NetworkException, User>.some(
     User('111', 'Charlie'),
   );
 
@@ -210,7 +312,7 @@ void dcForwardErrorOrExample() {
 }
 
 void dcForwardErrorOrElseExample() {
-  final userResult = DC<NetworkException, User>.data(
+  final userResult = DC<NetworkException, User>.some(
     User('222', 'Diana', isVerified: true),
   );
 
@@ -288,7 +390,7 @@ void dcMapErrorExample() {
 }
 
 void chainedOperationsExample() {
-  final userResult = DC<NetworkException, User>.data(
+  final userResult = DC<NetworkException, User>.some(
     User('333', 'eve', isVerified: true),
   );
 
@@ -345,13 +447,13 @@ void nullHandlingWithOptionsExample() {
   // Expected: Traditional nullable: UNKNOWN
 
   // Option approach (preferred)
-  final nameOption = Option<String>.from(null);
+  final nameOption = Option<String>.auto(null);
   final optionResult = nameOption.map((n) => n.toUpperCase()).orElse('UNKNOWN');
   print('Option approach: $optionResult');
   // Expected: Option approach: UNKNOWN
 
   // Chaining operations safely
-  final processedName = Option.from('alice')
+  final processedName = Option.auto('alice')
       .filter((n) => n.length > 3)
       .map((n) => n.toUpperCase())
       .map((n) => 'User: $n')
@@ -363,7 +465,7 @@ void nullHandlingWithOptionsExample() {
 
 void workflowExample() {
   // Simulate: fetchUser → validateUser → createProfile
-  final fetchResult = DC<NetworkException, User>.data(
+  final fetchResult = DC<NetworkException, User>.some(
     User('555', 'Frank', isVerified: true),
   );
 
@@ -415,7 +517,7 @@ void workflowExample() {
 
 DC<NetworkException, User> simulateApiCall(String id) {
   // Simulate successful API call
-  return DC<NetworkException, User>.data(
+  return DC<NetworkException, User>.some(
     User(id, 'SimulatedUser', isVerified: true),
   );
 }
@@ -464,14 +566,14 @@ class StarwarsDataSource {
       }
 
       if (body.isEmpty) {
-        return DC.nullData(); // Success but no data
+        return DC.none(); // Success but no data
       }
 
       final data = StarwarsResponse.fromJson(
         json.decode(body) as Map<String, dynamic>,
       );
 
-      return DC.data(data);
+      return DC.some(data);
     } on Exception catch (e) {
       return DC.error(e);
     }

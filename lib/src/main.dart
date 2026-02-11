@@ -21,19 +21,55 @@ sealed class DC<Err, Data> {
   /// ```
   factory DC.error(Err error) = DCError<Err, Data>;
 
-  /// Creates a DC with data.
+  /// Automatically creates a DC from a nullable value.
+  ///
+  /// - If value is non-null → returns DCData(Some(value))
+  /// - If value is null → returns DCData(None())
+  ///
+  /// Use this to eliminate manual null checks when wrapping nullable values.
   ///
   /// ```dart
-  /// DC.data(user)
+  /// DC.auto(user)           // DCData(Some(user)) if user is non-null
+  /// DC.auto(null)           // DCData(None())
+  ///
+  /// // Replaces manual checking
+  /// String? name = getUserName();
+  /// DC<Exception, String> result = DC.auto(name);  // auto-handles null
   /// ```
-  factory DC.data(Data data) = DCData<Err, Data>.some;
+  factory DC.auto(Data? data) {
+    return data != null ? DCData.some(data) : DCData<Err, Data>.none();
+  }
 
-  /// Creates a DC with null/no data.
+  /// Creates a DC with data wrapped in Some.
+  ///
+  /// The value is always wrapped in Some, (even if null, when data is nullable).
   ///
   /// ```dart
-  /// DC.nullData()
+  /// DC.some(user)           // DCData(Some(user))
+  /// DC.some(null)           // DCData(Some(null)) if data is nullable
   /// ```
-  factory DC.nullData() = DCData<Err, Data>.none;
+  factory DC.some(Data data) = DCData<Err, Data>.some;
+
+  /// Creates a DC with no data (None).
+  ///
+  /// ```dart
+  /// DC.none()               // DCData(None())
+  /// ```
+  factory DC.none() = DCData<Err, Data>.none;
+
+  /// Creates a DC from an existing Option without double-wrapping.
+  ///
+  /// Lifts an Option directly into DCData without creating `Option<Option<T>>`.
+  ///
+  /// ```dart
+  /// Option<User> userOpt = getUserOption();
+  /// DC<Exception, User> result = DC.fromOption(userOpt);
+  /// // If userOpt is Some(user) → DCData(Some(user))
+  /// // If userOpt is None() → DCData(None())
+  /// ```
+  factory DC.fromOption(Option<Data> option) {
+    return DCData(option);
+  }
 
   /// Returns true if this is a DCError.
   bool get hasError;
@@ -80,11 +116,11 @@ sealed class DC<Err, Data> {
   ) {
     return dc.fold(
       onError: DC.error,
-      onData: (_) => DC.data(data),
+      onData: (_) => DC.some(data),
     );
   }
 
-  /// Forwards error if present, otherwise creates DCData with null.
+  /// Forwards error if present, otherwise creates DCData with None.
   ///
   /// ```dart
   /// return DC.forwardErrorOrNull(userResult);
@@ -94,7 +130,7 @@ sealed class DC<Err, Data> {
   ) {
     return dc.fold(
       onError: DC.error,
-      onData: (_) => DC.nullData(),
+      onData: (_) => DC.none(),
     );
   }
 
@@ -193,10 +229,10 @@ final class DCError<Err, Data> extends DC<Err, Data> {
 final class DCData<Err, Data> extends DC<Err, Data> {
   const DCData(this.data);
 
-  /// Creates DCData with a value.
+  /// Creates DCData with a value wrapped in Some.
   DCData.some(Data value) : data = Some(value);
 
-  /// Creates DCData with no value.
+  /// Creates DCData with None (no value).
   const DCData.none() : data = const None();
 
   /// The optional data value.

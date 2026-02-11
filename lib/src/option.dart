@@ -4,14 +4,19 @@ import 'package:meta/meta.dart';
 sealed class Option<T> {
   const Option();
 
-  /// Creates an Option from a nullable value.
-  /// Returns Some if value is non-null, None otherwise.
+  /// Automatically creates Some if value is non-null, None if null.
+  ///
+  /// This factory performs the null check and chooses the appropriate variant for you.
   ///
   /// ```dart
-  /// Option.from(5)     // Some(5)
-  /// Option.from(null)  // None()
+  /// Option.auto(5)     // Some(5)
+  /// Option.auto(null)  // None()
+  ///
+  /// // Replaces manual null checking
+  /// String? name = getUserName();
+  /// Option<String> opt = Option.auto(name);  // auto-handles null
   /// ```
-  factory Option.from(T? value) {
+  factory Option.auto(T? value) {
     return value != null ? Some(value) : None<T>();
   }
 

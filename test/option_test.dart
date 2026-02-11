@@ -28,15 +28,15 @@ void main() {
       expect(option.tryMaybe(), null);
     });
 
-    test('Option.from(value) creates Some when non-null', () {
-      final option = Option.from(5);
+    test('Option.auto(value) creates Some when non-null', () {
+      final option = Option.auto(5);
 
       expect(option.isSome, true);
       expect(option.tryMaybe(), 5);
     });
 
-    test('Option.from(null) creates None', () {
-      final option = Option<int>.from(null);
+    test('Option.auto(null) creates None', () {
+      final option = Option<int>.auto(null);
 
       expect(option.isNone, true);
       expect(option.tryMaybe(), null);
@@ -613,7 +613,7 @@ void main() {
 
   group('Type Aliases', () {
     test('DCOption works as alias', () {
-      final option = DCOption.from(5);
+      final option = DCOption.auto(5);
 
       expect(option.isSome, true);
       expect(option, isA<Option<int>>());
