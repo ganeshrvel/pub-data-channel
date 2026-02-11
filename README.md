@@ -18,6 +18,7 @@ convenience and compile-time type safety.
 - **DC (Data Channel)** - Represents either an error or optional data (similar to Result/Either
   types)
 - **Option** - Represents presence (Some) or absence (None) of a value (eliminates nullable types)
+- **Non-Nullable Guarantee** - `Some` always contains non-null values; use `None` for absence
 - **Tight Coupling** - DC always wraps data in `Option<Data>`, enforcing explicit null handling
 - **Type Safety** - Explicit error and data types in your function signatures
 - **Composability** - Chain operations without repetitive error/null checking
@@ -31,13 +32,13 @@ convenience and compile-time type safety.
 
 **What version to use**
 
-* Use `data_channel` 4.0.0 and above for Dart SDK >= 3.0.0
+* Use `data_channel` 5.0.0 and above for Dart SDK >= 3.0.0
 * Use `data_channel` 3.0.0+2 for Dart SDK >= 2.12.0 and < 3.0.0
 
 ### Installation
 
-Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest version of *
-*data_channel**
+Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest version of
+`data_channel`
 
 ---
 
@@ -48,15 +49,15 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 #### Constructors
 
 - **`DC.error(error)`** - Creates a DC containing an error
-- **`DC.auto(nullableData)`** - Automatically creates Some if non-null, None if null
-- **`DC.some(data)`** - Creates a DC with data wrapped in Some (even if null for nullable types)
+- **`DC.auto(nullableData)`** - Automatically creates `Some` if non-null, `None` if null
+- **`DC.some(data)`** - Creates a DC with NON-NULL data wrapped in `Some`
 - **`DC.none()`** - Creates a DC with no data (None)
 - **`DC.fromOption(option)`** - Creates a DC from an existing Option without double-wrapping
 
 #### Instance Methods
 
 - **`hasError`** - Returns true if this is a DCError
-- **`hasOptionalData`** - Returns true if this is DCData (with Some or None), false if DCError
+- **`hasOptionalData`** - Returns true if this is DCData (with `Some` or `None`), false if DCError
     - Note: To check if actual data is present, use the Option's `isSome`/`isNone` methods
 - **`fold<U>({onError, onData})`** - Pattern match on error or data, returning a value
 - **`mapError<NewErr>(transform)`** - Transform the error type while preserving data
@@ -65,8 +66,9 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 
 - **`DC.forwardErrorOr(dc, newData)`** - Forward error if present, otherwise create new DCData with
   provided data
-- **`DC.forwardErrorOrNull(dc)`** - Forward error if present, otherwise create DCData with None
-- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise lazily transform data and return an Option
+- **`DC.forwardErrorOrNull(dc)`** - Forward error if present, otherwise create DCData with `None`
+- **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise lazily call builder
+  to transform data
 
 ### Option API
 
@@ -74,13 +76,14 @@ The `Option<T>` type represents optional values and is used within `DCData` to h
 
 #### Constructors
 
-- **`Some(value)`** - Creates an Option containing a value
-- **`None()`** - Creates an empty Option
-- **`Option.auto(nullable)`** - Automatically creates Some if non-null, None otherwise
+- **`Some(value)`** - Creates an Option containing a NON-NULL value
+- **`None()`** - Creates an empty Option (use `None<T>()` for explicit typing)
+- **`Option.auto(nullable)`** - Automatically creates Some if non-null, `None` if null (requires
+  explicit type for null: `Option<T>.auto(null)`)
 
 #### Instance Methods
 
-- **`isSome`** - Returns true if contains a value
+- **`isSome`** - Returns true if contains a value (guaranteed non-null)
 - **`isNone`** - Returns true if empty
 - **`tryMaybe()`** - Returns the value or null
 - **`orElse(defaultValue)`** - Returns the value or a default
@@ -100,18 +103,55 @@ The `Option<T>` type represents optional values and is used within `DCData` to h
 
 ## Examples
 
-### Basic Usage
+### Non-Nullable Guarantee
 
-Automatically wraps nullable values in the appropriate Option variant. Use this to eliminate manual null checks when working with nullable data:
+With the `extends Object` constraint, `Some` ALWAYS contains non-null values:
+
+```dart
+void main() {
+  final userOption = Some(User('1', 'Alice'));
+
+  if (userOption.isSome) {
+    // Safe to unwrap - guaranteed non-null!
+    final user = userOption.tryMaybe()!;
+    print('User: ${user.name}'); // No null check needed
+  }
+
+  // None represents absence, not null value
+  final emptyOption = None<User>();
+  print(emptyOption.isNone); // true
+  print(emptyOption.tryMaybe()); // null (returns null, doesn't contain null)
+}
+```
+
+**⚠️ Warning:** Type casting and `dynamic` can bypass this guarantee. Use `DC.auto()` or
+`Option.auto()` for nullable values instead of casting.
+
+```dart
+void main() {
+  // Unsafe - can crash at runtime
+  dynamic value = null;
+  Some(value as User);
+
+  // Safe - handles null correctly
+  DC.auto(nullableUser);
+  Option.auto(nullableUser);
+}
+```
+
+### DC.auto - Auto-handle Nullable Values
+
+Automatically wraps nullable values in the appropriate Option variant. Use this to eliminate manual
+null checks when working with nullable data:
 
 ```dart
 Future<DC<Exception, User>> getUserById(String id) async {
   try {
     final User? user = await database.findUser(id); // might be null
-    
+
     // Automatically creates Some(user) or None() based on null check
     return DC<Exception, User>.auto(user);
-    
+
     // Instead of manual:
     // return user != null ? DC.some(user) : DC.none();
   } on Exception catch (e) {
@@ -120,17 +160,18 @@ Future<DC<Exception, User>> getUserById(String id) async {
 }
 ```
 
-Creates a DC from an existing Option WITHOUT double-wrapping. Use this when you already have an Option from another operation and want to lift it into a DC:
+Creates a DC from an existing Option WITHOUT double-wrapping. Use this when you already have an
+Option from another operation and want to lift it into a DC:
 
 ```dart
 Future<DC<Exception, Profile>> getProfileFromCache() async {
   try {
     // Cache returns Option<Profile>
     final Option<Profile> cachedProfile = cache.get('profile');
-    
+
     // Lift Option directly into DC WITHOUT creating Option<Option<Profile>>
     return DC<Exception, Profile>.fromOption(cachedProfile);
-    
+
     // Instead of manual:
     // return cachedProfile.fold(
     //   onSome: (p) => DC.some(p),
@@ -141,6 +182,8 @@ Future<DC<Exception, Profile>> getProfileFromCache() async {
   }
 }
 ```
+
+### Basic Usage
 
 Return either error or data from any method:
 
@@ -305,7 +348,7 @@ void main() {
 
       // Check if data exists
       if (userOption.isSome) {
-        final user = userOption.tryMaybe()!;
+        final user = userOption.tryMaybe()!; // Safe - guaranteed non-null
         print('User: ${user.name}');
       }
 
@@ -467,7 +510,7 @@ import 'package:data_channel/data_channel.dart';
 // Create Options
 final some = Some(42);
 final none = None<int>();
-final fromNullable = Option.auto(possiblyNullValue);
+final fromNullable = Option<int>.auto(possiblyNullValue); // Explicit type needed
 
 // Transform values
 final doubled = some.map((x) => x * 2); // Some(84)

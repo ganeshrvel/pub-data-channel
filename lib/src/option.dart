@@ -1,20 +1,27 @@
 import 'package:meta/meta.dart';
 
 /// Represents an optional value: every Option is either Some and contains a value, or None.
-sealed class Option<T> {
+sealed class Option<T extends Object> {
   const Option();
 
   /// Automatically creates Some if value is non-null, None if null.
   ///
   /// This factory performs the null check and chooses the appropriate variant for you.
+  /// Use this when working with nullable values or dynamic data.
   ///
   /// ```dart
+  /// // Basic usage
   /// Option.auto(5)     // Some(5)
   /// Option.auto(null)  // None()
   ///
-  /// // Replaces manual null checking
+  /// // With nullable variables
   /// String? name = getUserName();
   /// Option<String> opt = Option.auto(name);  // auto-handles null
+  ///
+  /// // With dynamic values (recommended pattern)
+  /// dynamic apiResponse = fetchData();
+  /// Option<User> user = Option.auto(apiResponse as User?);  // Safe - handles null
+  /// // Don't use: Some(apiResponse as User) - crashes if null!
   /// ```
   factory Option.auto(T? value) {
     return value != null ? Some(value) : None<T>();
@@ -61,7 +68,7 @@ sealed class Option<T> {
   /// Some(5).map((x) => x * 2)  // Some(10)
   /// None().map((x) => x * 2)   // None()
   /// ```
-  Option<U> map<U>(U Function(T value) transform);
+  Option<U> map<U extends Object>(U Function(T value) transform);
 
   /// Maps an `Option<T>` to `Option<U>` by applying a function that returns an Option.
   /// Flattens nested Options.
@@ -71,7 +78,7 @@ sealed class Option<T> {
   /// Some(5).flatMap((x) => None())       // None()
   /// None().flatMap((x) => Some(x * 2))   // None()
   /// ```
-  Option<U> flatMap<U>(Option<U> Function(T value) transform);
+  Option<U> flatMap<U extends Object>(Option<U> Function(T value) transform);
 
   /// Returns None if the option is None, otherwise calls predicate with the
   /// wrapped value and returns Some if predicate returns true, None if false.
@@ -104,7 +111,7 @@ sealed class Option<T> {
 
 /// Some value of type T.
 @immutable
-final class Some<T> extends Option<T> {
+final class Some<T extends Object> extends Option<T> {
   const Some(this.value);
 
   /// The contained value.
@@ -126,12 +133,12 @@ final class Some<T> extends Option<T> {
   T orElseGet(T Function() getDefault) => value;
 
   @override
-  Option<U> map<U>(U Function(T value) transform) {
+  Option<U> map<U extends Object>(U Function(T value) transform) {
     return Some(transform(value));
   }
 
   @override
-  Option<U> flatMap<U>(Option<U> Function(T value) transform) {
+  Option<U> flatMap<U extends Object>(Option<U> Function(T value) transform) {
     return transform(value);
   }
 
@@ -162,7 +169,7 @@ final class Some<T> extends Option<T> {
 
 /// No value.
 @immutable
-final class None<T> extends Option<T> {
+final class None<T extends Object> extends Option<T> {
   const None();
 
   @override
@@ -181,10 +188,11 @@ final class None<T> extends Option<T> {
   T orElseGet(T Function() getDefault) => getDefault();
 
   @override
-  Option<U> map<U>(U Function(T value) transform) => None<U>();
+  Option<U> map<U extends Object>(U Function(T value) transform) => None<U>();
 
   @override
-  Option<U> flatMap<U>(Option<U> Function(T value) transform) => None<U>();
+  Option<U> flatMap<U extends Object>(Option<U> Function(T value) transform) =>
+      None<U>();
 
   @override
   Option<T> filter(bool Function(T value) predicate) => this;

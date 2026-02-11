@@ -74,6 +74,7 @@ void main() {
   realWorldApiExample();
   nullHandlingWithOptionsExample();
   workflowExample();
+  nonNullableGuaranteeExample();
 }
 
 void dcAutoExample() {
@@ -171,8 +172,7 @@ Option<Profile> getCachedProfile(String userId) {
 
 DC<NetworkException, String> processOptionData() {
   // Simulate function that returns Option
-  // ignore: omit_local_variable_types
-  final Option<String> optionData = Option.auto('processed_value');
+  final optionData = Option.auto('processed_value');
 
   // Process Option and lift into DC
   final transformed = optionData.map((s) => s.toUpperCase());
@@ -200,7 +200,7 @@ void basicDCUsageExample() {
 
   print('Error case:');
   print('  hasError: ${errorResult.hasError}');
-  print('  hasOptionalData: ${errorResult.hasOptionalData}\n');
+  print('  hasOptionalData: ${errorResult.hasOptionalData}');
   // Expected:
   //   hasError: true
   //   hasOptionalData: false
@@ -209,7 +209,7 @@ void basicDCUsageExample() {
   final nullDataResult = DC<NetworkException, User>.none();
   print('Null data case:');
   print('  hasError: ${nullDataResult.hasError}');
-  print('  hasOptionalData: ${nullDataResult.hasOptionalData}\n');
+  print('  hasOptionalData: ${nullDataResult.hasOptionalData}');
   // Expected:
   //   hasError: false
   //   hasOptionalData: true
@@ -219,7 +219,7 @@ void optionBasicsExample() {
   // Creating Options
   const some = Some(42);
   const none = None<int>();
-  final fromNullable = Option.auto(null);
+  final fromNullable = Option<int>.auto(null);
 
   print('Some(42).isSome: ${some.isSome}');
   // Expected: Some(42).isSome: true
@@ -227,8 +227,8 @@ void optionBasicsExample() {
   print('None().isNone: ${none.isNone}');
   // Expected: None().isNone: true
 
-  print('Option.auto(null).isNone: ${fromNullable.isNone}');
-  // Expected: Option.auto(null).isNone: true
+  print('Option<int>.auto(null).isNone: ${fromNullable.isNone}');
+  // Expected: Option<int>.auto(null).isNone: true
 
   // Using Option methods
   final doubled = some.map((x) => x * 2);
@@ -241,7 +241,7 @@ void optionBasicsExample() {
 
   // Filtering
   final evenOnly = some.filter((x) => x.isEven);
-  print('Some(42).filter(isEven): ${evenOnly.tryMaybe()}\n');
+  print('Some(42).filter(isEven): ${evenOnly.tryMaybe()}');
   // Expected: Some(42).filter(isEven): 42
 }
 
@@ -270,7 +270,7 @@ void dcFoldExample() {
     onData: (userOption) => 'User loaded',
   );
 
-  print('Error fold: $errorMessage\n');
+  print('Error fold: $errorMessage');
   // Expected: Error fold: Error: Network error
 }
 
@@ -459,7 +459,7 @@ void nullHandlingWithOptionsExample() {
       .map((n) => 'User: $n')
       .orElse('Invalid name');
 
-  print('Chained Option: $processedName\n');
+  print('Chained Option: $processedName');
   // Expected: Chained Option: User: ALICE
 }
 
@@ -513,6 +513,47 @@ void workflowExample() {
   print(finalMessage);
   // Expected:
   //   Created: Profile(userId: 555, bio: Bio for Frank)
+}
+
+void nonNullableGuaranteeExample() {
+  // With extends Object, Some ALWAYS contains non-null values
+  final userOption = Some(User('1', 'Alice'));
+
+  if (userOption.isSome) {
+    // Safe to unwrap - guaranteed non-null with extends Object
+    final user = userOption.tryMaybe()!;
+    print('User name length: ${user.name.length}'); // No null check needed!
+    // Expected: User name length: 5
+  }
+
+  // DC.auto with dynamic values
+  const dynamic apiResponse = 'test-data';
+  final result1 = DC<NetworkException, String>.auto(apiResponse as String?);
+
+  print('Dynamic non-null:');
+  result1.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (opt) => opt.fold(
+      onSome: (data) => print('  Data: $data'),
+      onNone: () => print('  No data'),
+    ),
+  );
+  // Expected: Data: test-data
+
+  dynamic nullResponse;
+  final result2 = DC<NetworkException, String>.auto(nullResponse as String?);
+
+  print('Dynamic null:');
+  result2.fold(
+    onError: (e) => print('  Error: $e'),
+    onData: (opt) => opt.fold(
+      onSome: (data) => print('  Data: $data'),
+      onNone: () => print('  No data'),
+    ),
+  );
+  // Expected: No data
+
+  print('\nKey point: isSome=true means value is GUARANTEED non-null!');
 }
 
 DC<NetworkException, User> simulateApiCall(String id) {

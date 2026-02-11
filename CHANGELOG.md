@@ -1,3 +1,7 @@
+## 5.0.0
+
+- Breaking: Non-nullable constraint: Data types must be non-nullable (enforced via `extends Object`)
+
 ## 4.0.0+1
 
 - Readme updates

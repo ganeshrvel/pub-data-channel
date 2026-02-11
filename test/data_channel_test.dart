@@ -106,19 +106,6 @@ void main() {
       );
     });
 
-    test('DC.some wraps null in Some when Data is nullable', () {
-      final dc = DC<NetworkError, String?>.some(null);
-
-      expect(dc, isA<DCData<NetworkError, String?>>());
-      dc.fold(
-        onError: (_) => fail('Should not have error'),
-        onData: (opt) {
-          expect(opt.isSome, true);
-          expect(opt.tryMaybe(), null);
-        },
-      );
-    });
-
     test('DC.none creates DCData with None', () {
       final dc = DC<NetworkError, User>.none();
 
@@ -210,6 +197,80 @@ void main() {
       expect(none, isA<DC<NetworkError, User>>());
       expect(auto, isA<DC<NetworkError, User>>());
       expect(fromOption, isA<DC<NetworkError, User>>());
+    });
+  });
+
+  group('DC Non-Nullable Constraint Tests', () {
+    test('DC.some guarantees non-null value in Some', () {
+      const user = User('1', 'Alice');
+      final dc = DC<NetworkError, User>.some(user);
+
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          if (opt.isSome) {
+            // This is safe - value is guaranteed non-null
+            final value = opt.tryMaybe()!;
+            expect(value.name, 'Alice');
+          }
+        },
+      );
+    });
+
+    test('DC.auto with dynamic value handles null correctly', () {
+      // ignore: prefer_final_locals
+      dynamic dynamicValue = 'test';
+      final dc1 = DC<NetworkError, String>.auto(dynamicValue as String?);
+
+      dc1.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isSome, true);
+          expect(opt.tryMaybe(), 'test');
+        },
+      );
+
+      // ignore: prefer_final_locals, avoid_init_to_null
+      dynamic nullValue = null;
+      final dc2 = DC<NetworkError, String>.auto(nullValue as String?);
+
+      dc2.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isNone, true);
+        },
+      );
+    });
+
+    test('isSome=true guarantees non-null value', () {
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
+
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          if (opt.isSome) {
+            // Safe to unwrap - guaranteed non-null
+            final user = opt.tryMaybe()!;
+            expect(user.name.length, 5); // No null check needed
+          }
+        },
+      );
+    });
+
+    test('None represents absence, not null value', () {
+      final dc = DC<NetworkError, User>.none();
+
+      dc.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isNone, true);
+          expect(opt.isSome, false);
+          expect(
+            opt.tryMaybe(),
+            null,
+          ); // Returns null, but doesn't contain null
+        },
+      );
     });
   });
 
@@ -1157,35 +1218,6 @@ void main() {
     });
   });
 
-  group('Edge Cases - Nullable Data', () {
-    test('DCData with Some(null) when Data type is nullable', () {
-      final dc = DC<NetworkError, String?>.some(null);
-
-      expect(dc.hasOptionalData, true);
-      dc.fold(
-        onError: (_) => fail('Should not have error'),
-        onData: (opt) {
-          expect(opt.isSome, true);
-          expect(opt.tryMaybe(), null);
-        },
-      );
-    });
-
-    test('Operations on DCData with Some(null)', () {
-      final dc = DC<NetworkError, int?>.some(null);
-
-      final result = DC.forwardErrorOrElse(
-        dc,
-        (opt) => opt.map((value) => value == null ? 0 : value * 2),
-      );
-
-      result.fold(
-        onError: (_) => fail('Should not have error'),
-        onData: (opt) => expect(opt.tryMaybe(), 0),
-      );
-    });
-  });
-
   group('Edge Cases - Same Type Forward', () {
     test('forward with same User type', () {
       final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
@@ -1423,8 +1455,7 @@ void main() {
             (userOpt) => userOpt
                 .filter((u) => u.isVerified)
                 .flatMap<String>(
-                  (u) =>
-                      u.name.length > 2 ? Some(u.name) : const None<String>(),
+                  (u) => u.name.length > 2 ? Some(u.name) : const None(),
                 )
                 .map((name) => name.toUpperCase()),
           )
@@ -1432,6 +1463,151 @@ void main() {
             onError: (_) => fail('Should not have error'),
             onData: (opt) => expect(opt.isNone, true),
           );
+    });
+  });
+
+  group('DC Type Transitions Through forwardErrorOrElse', () {
+    test('DCData transitions through multiple type changes', () {
+      final dc = DC<NetworkError, User>.some(const User('1', 'Alice'));
+
+      // User → String → int → bool
+      final result = DC.forwardErrorOrElse(
+        dc,
+        (userOpt) =>
+            userOpt.map((u) => u.name), // Option<User> → Option<String>
+      );
+
+      final result2 = DC.forwardErrorOrElse(
+        result,
+        (nameOpt) =>
+            nameOpt.map((n) => n.length), // Option<String> → Option<int>
+      );
+
+      final result3 = DC.forwardErrorOrElse(
+        result2,
+        (lenOpt) => lenOpt.map((len) => len > 3), // Option<int> → Option<bool>
+      );
+
+      result3.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) {
+          expect(opt.isSome, true);
+          expect(opt.tryMaybe(), true);
+          expect(opt.tryMaybe(), isA<bool>());
+        },
+      );
+    });
+
+    test('None propagates through type changes in forwardErrorOrElse chain',
+        () {
+      final dc = DC<NetworkError, User>.none();
+
+      // None<User> → None<String> → None<int> → None<bool>
+      final result = DC.forwardErrorOrElse(
+        dc,
+        (userOpt) => userOpt.map((u) => u.name),
+      );
+
+      final result2 = DC.forwardErrorOrElse<NetworkError, String, int>(
+        result,
+        (nameOpt) => nameOpt.map((n) => n.length).flatMap<int>(
+              (len) => len > 0 ? Some(len) : const None<int>(),
+            ),
+      );
+
+      final result3 = DC.forwardErrorOrElse<NetworkError, int, bool>(
+        result2,
+        (lenOpt) => lenOpt.map((len) => len > 5),
+      );
+
+      final finalValue = result3.fold(
+        onError: (_) => fail('Should not have error'),
+        onData: (opt) => opt.orElse(false),
+      );
+
+      expect(finalValue, false);
+      expect(finalValue, isA<bool>());
+    });
+
+    test('Filter to None, then type changes through chain', () {
+      final dc = DC<NetworkError, User>.some(
+        const User('1', 'A', isVerified: false),
+      );
+
+      // User → filter fails → None<User> → None<String> → None<int>
+      final result = DC.forwardErrorOrElse(
+        dc,
+        (userOpt) => userOpt
+            .filter((u) => u.isVerified) // Some<User> → None<User>
+            .map((u) => u.name) // None<User> → None<String>
+            .map((n) => n.length) // None<String> → None<int>
+            .flatMap((len) => Some(len * 10)), // None<int> → None<int>
+      );
+
+      final finalValue = result.fold(
+        onError: (_) => -1,
+        onData: (opt) => opt.orElse(0),
+      );
+
+      expect(finalValue, 0);
+    });
+
+    test('Multiple forwardErrorOrElse with different None types', () {
+      final step1 = DC<NetworkError, User>.some(const User('1', 'Alice'));
+
+      final step2 = DC.forwardErrorOrElse(
+        step1,
+        (opt) => opt.filter((u) => u.name.length > 10), // → None<User>
+      );
+
+      final step3 = DC.forwardErrorOrElse(
+        step2,
+        (opt) =>
+            opt.map((u) => Profile(u.id, u.name)), // None<User> → None<Profile>
+      );
+
+      final step4 = DC.forwardErrorOrElse(
+        step3,
+        (opt) => opt.map((p) => p.bio.length), // None<Profile> → None<int>
+      );
+
+      final step5 = DC.forwardErrorOrElse(
+        step4,
+        (opt) => opt.map((len) => len > 5), // None<int> → None<bool>
+      );
+
+      final result = step5.fold(
+        onError: (_) => 'error',
+        onData: (opt) => opt.fold(
+          onSome: (b) => 'bool: $b',
+          onNone: () => 'none',
+        ),
+      );
+
+      expect(result, 'none');
+    });
+
+    test('Complex chain: Some→None→orElse with type transitions', () {
+      final dc = DC<NetworkError, int>.some(5);
+
+      final result = DC.forwardErrorOrElse(
+        dc,
+        (opt) => opt
+            .filter((x) => x > 100) // Some<int> → None<int>
+            .map((x) => 'large: $x') // None<int> → None<String>
+            .flatMap<Profile>(
+                (s) => Some(Profile('1', s))) // None<String> → None<Profile>
+            .map((p) => p.bio.length) // None<Profile> → None<int>
+            .map((len) => len > 0), // None<int> → None<bool>
+      );
+
+      final finalValue = result.fold(
+        onError: (_) => true,
+        onData: (opt) => opt.orElse(false),
+      );
+
+      expect(finalValue, false);
+      expect(finalValue, isA<bool>());
     });
   });
 }

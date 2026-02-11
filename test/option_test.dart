@@ -1,15 +1,22 @@
-// ignore_for_file: unreachable_from_main
-
 import 'package:data_channel/data_channel.dart';
 import 'package:data_channel/src/option.dart';
+import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
 // Mock class for testing
+@immutable
 class User {
-  User(this.id, this.name);
+  const User(this.id, this.name);
 
   final String id;
   final String name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is User && other.id == id && other.name == name;
+
+  @override
+  int get hashCode => Object.hash(id, name);
 }
 
 void main() {
@@ -40,6 +47,62 @@ void main() {
 
       expect(option.isNone, true);
       expect(option.tryMaybe(), null);
+    });
+
+    test('Option.auto with dynamic non-null value', () {
+      // ignore: prefer_final_locals
+      dynamic dynamicValue = 'test';
+      final option = Option<String>.auto(dynamicValue as String?);
+
+      expect(option.isSome, true);
+      expect(option.tryMaybe(), 'test');
+    });
+
+    test('Option.auto with dynamic null value', () {
+      // ignore: prefer_final_locals, avoid_init_to_null
+      dynamic dynamicValue = null;
+      final option = Option<String>.auto(dynamicValue as String?);
+
+      expect(option.isNone, true);
+      expect(option.tryMaybe(), null);
+    });
+  });
+
+  group('Option Non-Nullable Constraint Tests', () {
+    test('Some guarantees non-null value', () {
+      const option = Some(5);
+
+      if (option.isSome) {
+        // Safe to unwrap - guaranteed non-null with extends Object
+        final value = option.tryMaybe()!;
+        expect(value, 5);
+        expect(value.isEven, false); // Can use methods without null check
+      }
+    });
+
+    test('Some with User guarantees non-null object', () {
+      const option = Some(User('1', 'Alice'));
+
+      if (option.isSome) {
+        final user = option.tryMaybe()!;
+        expect(user.name.length, 5); // No null checks needed
+      }
+    });
+
+    test('None represents absence, not null value', () {
+      const option = None<int>();
+
+      expect(option.isNone, true);
+      expect(option.isSome, false);
+      expect(option.tryMaybe(), null); // Returns null, doesn't contain null
+    });
+
+    test('Type inference works with const None', () {
+      // Type inferred from context
+      const Option<String> option = None();
+
+      expect(option.isNone, true);
+      expect(option, isA<Option<String>>());
     });
   });
 
@@ -72,6 +135,15 @@ void main() {
       const option = None<int>();
 
       expect(option.tryMaybe(), null);
+    });
+
+    test('Some with isSome check allows safe unwrap', () {
+      const option = Some('hello');
+
+      if (option.isSome) {
+        final value = option.tryMaybe()!; // Safe with extends Object
+        expect(value.toUpperCase(), 'HELLO');
+      }
     });
   });
 
@@ -154,6 +226,16 @@ void main() {
       expect(result.isNone, true);
       expect(called, false);
     });
+
+    test('Some map preserves non-null guarantee', () {
+      const option = Some(5);
+      final result = option.map((x) => x.toString());
+
+      if (result.isSome) {
+        final str = result.tryMaybe()!;
+        expect(str.length, 1); // Can use without null check
+      }
+    });
   });
 
   group('Option map - Type Changes', () {
@@ -174,7 +256,7 @@ void main() {
     });
 
     test('Some(User) maps to User.name', () {
-      final option = Some(User('123', 'John'));
+      const option = Some(User('123', 'John'));
       final result = option.map((user) => user.name);
 
       expect(result.isSome, true);
@@ -310,6 +392,17 @@ void main() {
       expect(result.isNone, true);
       expect(called, false);
     });
+
+    test('Filter with non-null guarantee', () {
+      const option = Some(User('1', 'Alice'));
+      final result = option.filter((u) => u.name.length > 3);
+
+      expect(result.isSome, true);
+      if (result.isSome) {
+        final user = result.tryMaybe()!;
+        expect(user.name, 'Alice');
+      }
+    });
   });
 
   group('Option filter - Chaining', () {
@@ -380,6 +473,16 @@ void main() {
       expect(some.fold(onSome: (x) => true, onNone: () => false), true);
       expect(none.fold(onSome: (x) => true, onNone: () => false), false);
     });
+
+    test('fold onSome receives non-null value', () {
+      const Some('test').fold(
+        onSome: (value) {
+          // value is guaranteed String, not String?
+          expect(value.toUpperCase(), 'TEST');
+        },
+        onNone: () => fail('Should not call onNone'),
+      );
+    });
   });
 
   group('Option fold - Type Transformation', () {
@@ -410,8 +513,8 @@ void main() {
       final result = option
           .map((x) => x * 2) // 20
           .filter((x) => x > 15) // passes
-          .map((x) => x / 2) // 10
-          .flatMap((x) => Some(x.toInt())) // 10
+          .map((x) => x ~/ 2) // 10
+          .flatMap(Some.new) // 10
           .fold(
             onSome: (x) => 'Result: $x',
             onNone: () => 'Failed',
@@ -512,23 +615,6 @@ void main() {
     });
   });
 
-  group('Option Edge Cases - Null Handling', () {
-    test('Some(null) if T is nullable', () {
-      const option = Some<int?>(null);
-
-      expect(option.isSome, true);
-      expect(option.tryMaybe(), null);
-    });
-
-    test('Operations on Some(null)', () {
-      const option = Some<int?>(null);
-      final result = option.map((x) => x == null ? 0 : x * 2);
-
-      expect(result.isSome, true);
-      expect(result.tryMaybe(), 0);
-    });
-  });
-
   group('Option Edge Cases - Identity Operations', () {
     test('Some map identity returns same value', () {
       const option = Some(5);
@@ -595,6 +681,15 @@ void main() {
       // ignore: unrelated_type_equality_checks
       expect(option1 == option2, false);
     });
+
+    test('Custom objects with equality', () {
+      const user1 = User('1', 'Alice');
+      const user2 = User('1', 'Alice');
+      const option1 = Some(user1);
+      const option2 = Some(user2);
+
+      expect(option1, equals(option2));
+    });
   });
 
   group('Option toString', () {
@@ -631,6 +726,105 @@ void main() {
 
       expect(option.isNone, true);
       expect(option, isA<None<int>>());
+    });
+  });
+
+  group('Real-world Usage Patterns', () {
+    test('Safe chaining with validation', () {
+      final maybeUser = Option<User>.auto(const User('1', 'a'));
+
+      final result = maybeUser
+          .filter((u) => u.name.length > 2)
+          .map((u) => u.name.toUpperCase())
+          .orElse('GUEST');
+
+      expect(result, 'GUEST');
+    });
+
+    test('Combining Option operations for data pipeline', () {
+      const users = [
+        User('1', 'Alice'),
+        User('2', 'Bob'),
+        User('3', 'Charlie'),
+      ];
+
+      final foundUser = Option<User>.auto(
+        users.cast<User?>().firstWhere(
+              (u) => u?.id == '2',
+              orElse: () => null,
+            ),
+      );
+
+      final result = foundUser.map((u) => u.name).orElse('Unknown');
+
+      expect(result, 'Bob');
+    });
+  });
+
+  group('Option Type Transitions', () {
+    test('None transitions through multiple type changes via map', () {
+      const option = None<int>();
+
+      // int → String → bool → double
+      final result = option
+          .map((x) => x.toString()) // None<int> → None<String>
+          .map((s) => s.isNotEmpty) // None<String> → None<bool>
+          .map((b) => b ? 1.0 : 0.0) // None<bool> → None<double>
+          .orElse(99.9);
+
+      expect(result, 99.9);
+      expect(result, isA<double>());
+    });
+
+    test('None transitions through flatMap chains', () {
+      const option = None<String>();
+
+      final result = option
+          .flatMap<int>((s) => Some(s.length)) // None<String> → None<int>
+          .flatMap<bool>((i) => Some(i > 5)) // None<int> → None<bool>
+          .flatMap<String>(
+              (b) => Some(b.toString())) // None<bool> → None<String>
+          .orElse('fallback');
+
+      expect(result, 'fallback');
+    });
+
+    test('None type changes through mixed map and flatMap', () {
+      const option = None<User>();
+
+      final result = option
+          .map((u) => u.name) // None<User> → None<String>
+          .flatMap<int>((s) => Some(s.length)) // None<String> → None<int>
+          .map((i) => i * 2) // None<int> → None<int>
+          .flatMap<bool>((i) => Some(i > 10)) // None<int> → None<bool>
+          .orElse(false);
+
+      expect(result, false);
+    });
+
+    test('Filter creates None with preserved type', () {
+      const option = Some('hello');
+
+      final result = option
+          .filter((s) => s.length > 10) // Some<String> → None<String>
+          .map((s) => s.toUpperCase()) // None<String> → None<String>
+          .orElse('default');
+
+      expect(result, 'default');
+      expect(result, isA<String>());
+    });
+
+    test('Complex type chain with Some→None→Some via flatMap', () {
+      const option = Some(5);
+
+      final result = option
+          .map((x) => x * 2) // Some(10)
+          .filter((x) => x > 100) // None<int>
+          .flatMap<String>((x) => Some('value: $x')) // None<String>
+          .map((s) => s.length) // None<int>
+          .orElseGet(() => 0);
+
+      expect(result, 0);
     });
   });
 }

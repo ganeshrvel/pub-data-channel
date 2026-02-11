@@ -2,16 +2,16 @@ import 'package:data_channel/src/option.dart';
 import 'package:meta/meta.dart';
 
 // Type aliases
-typedef DCOption<T> = Option<T>;
-typedef DCSome<T> = Some<T>;
-typedef DCNone<T> = None<T>;
+typedef DCOption<T extends Object> = Option<T>;
+typedef DCSome<T extends Object> = Some<T>;
+typedef DCNone<T extends Object> = None<T>;
 
 /// Data Channel - A result type for handling errors and data.
 ///
 /// Every DC is either:
 /// - DCError: contains an error
 /// - DCData: contains optional data
-sealed class DC<Err, Data> {
+sealed class DC<Err, Data extends Object> {
   const DC();
 
   /// Creates a DC with an error.
@@ -35,6 +35,11 @@ sealed class DC<Err, Data> {
   /// // Replaces manual checking
   /// String? name = getUserName();
   /// DC<Exception, String> result = DC.auto(name);  // auto-handles null
+  ///
+  /// // With dynamic values (recommended pattern)
+  /// dynamic apiResponse = fetchData();
+  /// DC<Exception, User> result = DC.auto(apiResponse as User?);  // Safe - handles null
+  /// // Don't use: DC.some(apiResponse as User) - crashes if null!
   /// ```
   factory DC.auto(Data? data) {
     return data != null ? DCData.some(data) : DCData<Err, Data>.none();
@@ -42,18 +47,21 @@ sealed class DC<Err, Data> {
 
   /// Creates a DC with data wrapped in Some.
   ///
-  /// The value is always wrapped in Some, (even if null, when data is nullable).
+  /// The value is always wrapped in Some and must be NON-NULL.
   ///
   /// ```dart
-  /// DC.some(user)           // DCData(Some(user))
-  /// DC.some(null)           // DCData(Some(null)) if data is nullable
+  /// DC.some(user)  // DCData(Some(user)) - user must be NON-NULL
+  ///
+  /// // For nullable values, use DC.auto() instead
+  /// String? name = getName();
+  /// DC.auto(name)  // Automatically handles null
   /// ```
   factory DC.some(Data data) = DCData<Err, Data>.some;
 
   /// Creates a DC with no data (None).
   ///
   /// ```dart
-  /// DC.none()               // DCData(None())
+  /// DC.none()  // DCData(None())
   /// ```
   factory DC.none() = DCData<Err, Data>.none;
 
@@ -110,7 +118,8 @@ sealed class DC<Err, Data> {
   /// final userResult = await fetchUser();
   /// return DC.forwardErrorOr(userResult, profile);
   /// ```
-  static DC<Err, NewData> forwardErrorOr<Err, Data, NewData>(
+  static DC<Err, NewData>
+      forwardErrorOr<Err, Data extends Object, NewData extends Object>(
     DC<Err, Data> dc,
     NewData data,
   ) {
@@ -125,7 +134,8 @@ sealed class DC<Err, Data> {
   /// ```dart
   /// return DC.forwardErrorOrNull(userResult);
   /// ```
-  static DC<Err, NewData> forwardErrorOrNull<Err, Data, NewData>(
+  static DC<Err, NewData>
+      forwardErrorOrNull<Err, Data extends Object, NewData extends Object>(
     DC<Err, Data> dc,
   ) {
     return dc.fold(
@@ -167,7 +177,8 @@ sealed class DC<Err, Data> {
   ///   (userData) => userData.map((user) => user.name).orElse('Guest'),
   /// )
   /// ```
-  static DC<Err, NewData> forwardErrorOrElse<Err, Data, NewData>(
+  static DC<Err, NewData>
+      forwardErrorOrElse<Err, Data extends Object, NewData extends Object>(
     DC<Err, Data> dc,
     Option<NewData> Function(Option<Data> data) builder,
   ) {
@@ -187,7 +198,7 @@ sealed class DC<Err, Data> {
 
 /// DC containing an error.
 @immutable
-final class DCError<Err, Data> extends DC<Err, Data> {
+final class DCError<Err, Data extends Object> extends DC<Err, Data> {
   const DCError(this.error);
 
   /// The error value.
@@ -226,7 +237,7 @@ final class DCError<Err, Data> extends DC<Err, Data> {
 
 /// DC containing optional data.
 @immutable
-final class DCData<Err, Data> extends DC<Err, Data> {
+final class DCData<Err, Data extends Object> extends DC<Err, Data> {
   const DCData(this.data);
 
   /// Creates DCData with a value wrapped in Some.
