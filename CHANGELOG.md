@@ -1,3 +1,7 @@
+## 5.1.0
+
+- New: `Option`, `Some`, `None` are now exported from the main `data_channel.dart` entrypoint, not just usable indirectly through `DC`
+
 ## 5.0.0
 
 - Breaking: Non-nullable constraint: Data types must be non-nullable (enforced via `extends Object`)
