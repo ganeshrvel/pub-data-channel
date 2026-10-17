@@ -1,3 +1,11 @@
+## 5.2.0
+
+- New: `DCRequired<Err, Data>` - a result type whose data is always present on success
+    - `DCRequired.error()` / `DCRequired.data()`
+    - `fold()`, `mapError()`, `hasError`, `toDC()`
+    - `DCRequired.forwardErrorOr()` / `DCRequired.forwardErrorOrNull()`
+- New: `dc.intoDCRequired(onNoneErr)` - converts a `DC` into a `DCRequired`
+
 ## 5.1.0
 
 - New: `Option`, `Some`, `None` are now exported from the main `data_channel.dart` entrypoint, not just usable indirectly through `DC`

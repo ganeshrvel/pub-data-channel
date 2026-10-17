@@ -1,5 +1,4 @@
 import 'package:data_channel/data_channel.dart';
-import 'package:data_channel/src/option.dart';
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
@@ -783,7 +782,8 @@ void main() {
           .flatMap<int>((s) => Some(s.length)) // None<String> → None<int>
           .flatMap<bool>((i) => Some(i > 5)) // None<int> → None<bool>
           .flatMap<String>(
-              (b) => Some(b.toString())) // None<bool> → None<String>
+            (b) => Some(b.toString()),
+          ) // None<bool> → None<String>
           .orElse('fallback');
 
       expect(result, 'fallback');

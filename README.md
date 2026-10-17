@@ -20,6 +20,8 @@ convenience and compile-time type safety.
 - **Option** - Represents presence (Some) or absence (None) of a value (eliminates nullable types)
 - **Non-Nullable Guarantee** - `Some` always contains non-null values; use `None` for absence
 - **Tight Coupling** - DC always wraps data in `Option<Data>`, enforcing explicit null handling
+- **DCRequired** - Represents either an error or a value that is always present on success, for
+  results that can never be empty (no `Option` to unwrap)
 - **Type Safety** - Explicit error and data types in your function signatures
 - **Composability** - Chain operations without repetitive error/null checking
 
@@ -69,6 +71,38 @@ Visit https://pub.dev/packages/data_channel#-installing-tab- for the latest vers
 - **`DC.forwardErrorOrNull(dc)`** - Forward error if present, otherwise create DCData with `None`
 - **`DC.forwardErrorOrElse(dc, builder)`** - Forward error if present, otherwise lazily call builder
   to transform data
+
+### DCRequired API
+
+`DCRequired<Err, Data>` is a separate result type for results that always carry a value on
+success.
+
+#### Constructors
+
+- **`DCRequired.error(error)`** - Creates a DCRequired containing an error
+- **`DCRequired.data(value)`** - Creates a DCRequired containing a NON-NULL value
+
+#### Instance Methods
+
+- **`hasError`** - Returns true if this is a DCRequiredError
+- **`fold<U>({onError, onData})`** - Pattern match on error or data, `onData` receives the value
+  directly
+- **`mapError<NewErr>(transform)`** - Transform the error type while preserving the value, stays a
+  DCRequired
+- **`toDC()`** - Converts to a DC (`DCRequiredData(value)` → `DCData(Some(value))`,
+  `DCRequiredError(e)` → `DCError(e)`)
+
+#### Static Methods
+
+- **`DCRequired.forwardErrorOr(dcRequired, newData)`** - Forward error if present, otherwise create
+  a DC with provided data
+- **`DCRequired.forwardErrorOrNull(dcRequired)`** - Forward error if present, otherwise create a DC
+  with `None`
+
+#### Converting from DC
+
+- **`dc.intoDCRequired(onNoneErr: ...)`** - Converts a DC into a DCRequired, turning `DCData(None)`
+  into the error built by `onNoneErr`
 
 ### Option API
 
@@ -331,6 +365,60 @@ final userFriendly = apiResult.mapError(
 final logged = apiResult
     .mapError((e) => logError(e))
     .mapError((e) => UserFacingException(e.message));
+```
+
+### DCRequired - Results That Always Carry a Value
+
+Many functions can never succeed without data - a lookup by id, a read, an update that returns the
+saved record. With `DC`, their callers still receive an `Option` and end up writing
+`data.tryMaybe()!`, which crashes with a `TypeError` the day someone returns `DC.none()` from that
+function. `DCRequired` puts the guarantee in the type instead:
+
+```dart
+Future<DCRequired<Exception, User>> findUser(String id) async {
+  try {
+    final User? user = await database.findUser(id);
+
+    if (user == null) {
+      return DCRequired.error(Exception('User $id not found'));
+    }
+
+    return DCRequired.data(user);
+  } on Exception catch (e) {
+    return DCRequired.error(e);
+  }
+}
+```
+
+Callers get the value directly, with no `Option` and no `!`:
+
+```dart
+Future<DC<Exception, Profile>> loadProfile(String id) async {
+  switch (await findUser(id)) {
+    case DCRequiredError(:final error):
+      return DC.error(error);
+    case DCRequiredData(:final value):
+      return DC.some(Profile(value.id, value.name));
+  }
+}
+
+// Or with fold
+final greeting = (await findUser('1')).fold(
+  onError: (error) => 'Failed: $error',
+  onData: (user) => 'Welcome ${user.name}!',
+);
+```
+
+Converting between `DC` and `DCRequired` is always explicit:
+
+```dart
+// DC → DCRequired: decide once what an empty result means
+final DCRequired<Exception, User> userResult = (await getUserById('1')).intoDCRequired(
+  onNoneErr: () => Exception('User 1 returned none'),
+);
+
+// DCRequired → DC: for code that expects a DC
+final DC<Exception, User> userDC = userResult.toDC();
 ```
 
 ### Working with Option Inside DCData

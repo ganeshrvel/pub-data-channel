@@ -5,12 +5,12 @@
 /// For comprehensive test examples and usage patterns, see:
 /// - DC (Data Channel) tests: https://github.com/ganeshrvel/pub-data-channel/blob/master/test/data_channel_test.dart
 /// - Option type tests: https://github.com/ganeshrvel/pub-data-channel/blob/master/test/option_test.dart
+/// - DCRequired tests: https://github.com/ganeshrvel/pub-data-channel/blob/master/test/dc_required_test.dart
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:data_channel/data_channel.dart';
-import 'package:data_channel/src/option.dart';
 
 // Mock classes for examples
 class User {
@@ -75,6 +75,9 @@ void main() {
   nullHandlingWithOptionsExample();
   workflowExample();
   nonNullableGuaranteeExample();
+  dcRequiredBasicsExample();
+  dcRequiredConversionExample();
+  dcRequiredWorkflowExample();
 }
 
 void dcAutoExample() {
@@ -554,6 +557,110 @@ void nonNullableGuaranteeExample() {
   // Expected: No data
 
   print('\nKey point: isSome=true means value is GUARANTEED non-null!');
+}
+
+void dcRequiredBasicsExample() {
+  // DCRequired is for results that always carry a value on success
+  final userResult = DCRequired<NetworkException, User>.data(
+    User('666', 'Grace'),
+  );
+
+  // fold receives the value directly, there is no Option to unwrap
+  final message = userResult.fold(
+    onError: (error) => 'Failed: ${error.message}',
+    onData: (user) => 'Welcome ${user.name}!',
+  );
+
+  print('DCRequired fold: $message');
+  // Expected: DCRequired fold: Welcome Grace!
+
+  final errorResult = DCRequired<NetworkException, User>.error(
+    NetworkException('User not found'),
+  );
+
+  // Pattern matching gives the value without tryMaybe() or !
+  switch (errorResult) {
+    case DCRequiredError(:final error):
+      print('DCRequired error: ${error.message}');
+    case DCRequiredData(:final value):
+      print('DCRequired user: ${value.name}');
+  }
+  // Expected: DCRequired error: User not found
+}
+
+void dcRequiredConversionExample() {
+  // DC → DCRequired: an empty data arm becomes an explicit error
+  final requiredResult = simulateDatabaseLookup('777').intoDCRequired(
+    onNoneErr: () => NetworkException('User 777 returned none'),
+  );
+
+  print('DC → DCRequired:');
+  requiredResult.fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (user) => print('  User: ${user.name}'),
+  );
+  // Expected:
+  //   User: DatabaseUser
+
+  final emptyResult = DC<NetworkException, User>.none().intoDCRequired(
+    onNoneErr: () => NetworkException('No user returned'),
+  );
+
+  print('DC.none() → DCRequired:');
+  emptyResult.fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (user) => print('  User: ${user.name}'),
+  );
+  // Expected:
+  //   Error: No user returned
+
+  // DCRequired → DC: always explicit, for code that expects a DC
+  final backToDC = requiredResult.toDC();
+
+  print('DCRequired → DC:');
+  backToDC.fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (opt) => print('  Some: ${opt.isSome}'),
+  );
+  // Expected:
+  //   Some: true
+}
+
+DCRequired<NetworkException, User> findUserById(String id) {
+  // A user is always present on success, so this returns DCRequired
+  if (id.isEmpty) {
+    return DCRequired.error(NetworkException('Empty user id'));
+  }
+
+  return DCRequired.data(User(id, 'RequiredUser', isVerified: true));
+}
+
+DC<NetworkException, Profile> loadProfileForUser(String id) {
+  // The DCRequired value is used directly, only the error is forwarded
+  switch (findUserById(id)) {
+    case DCRequiredError(:final error):
+      return DC.error(error);
+    case DCRequiredData(:final value):
+      return DC.some(Profile(value.id, 'Bio for ${value.name}'));
+  }
+}
+
+void dcRequiredWorkflowExample() {
+  print('Load profile (success):');
+  loadProfileForUser('888').fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (profile) => print('  Profile: ${profile.tryMaybe()}'),
+  );
+  // Expected:
+  //   Profile: Profile(userId: 888, bio: Bio for RequiredUser)
+
+  print('Load profile (error):');
+  loadProfileForUser('').fold(
+    onError: (e) => print('  Error: ${e.message}'),
+    onData: (profile) => print('  Profile: ${profile.tryMaybe()}'),
+  );
+  // Expected:
+  //   Error: Empty user id
 }
 
 DC<NetworkException, User> simulateApiCall(String id) {

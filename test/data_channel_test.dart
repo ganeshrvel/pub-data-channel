@@ -1,7 +1,6 @@
 // ignore_for_file: cascade_invocations
 
 import 'package:data_channel/data_channel.dart';
-import 'package:data_channel/src/option.dart';
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
@@ -1596,7 +1595,8 @@ void main() {
             .filter((x) => x > 100) // Some<int> → None<int>
             .map((x) => 'large: $x') // None<int> → None<String>
             .flatMap<Profile>(
-                (s) => Some(Profile('1', s))) // None<String> → None<Profile>
+              (s) => Some(Profile('1', s)),
+            ) // None<String> → None<Profile>
             .map((p) => p.bio.length) // None<Profile> → None<int>
             .map((len) => len > 0), // None<int> → None<bool>
       );
